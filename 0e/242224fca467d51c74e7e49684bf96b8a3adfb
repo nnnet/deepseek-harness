@@ -1,0 +1,35 @@
+.agents/notes/implemented/bug-fix/2026-08-23-context-size-overflow-wording.md
+  s_85d8c50cd03d26::t_7b3ba5829eb546 1-35
+packages/llm/llm/README.zh.md
+  s_85d8c50cd03d26::t_bd30ed9c2fac3f 85
+packages/llm/llm-pi-ai/tests/convert.spec.ts
+  s_85d8c50cd03d26::t_5a8fa395d9e9bd 856-862
+packages/llm/llm/tests/service.spec.ts
+  s_85d8c50cd03d26::t_f94a76448cd2d9 113-125
+packages/llm/llm/README.md
+  s_85d8c50cd03d26::t_32e0479bd3b36f 83
+packages/llm/llm/src/error.ts
+  s_85d8c50cd03d26::t_b27c4df4623b75 50-56,58-59
+.agents/notes/implemented/bug-fix/2026-08-23-context-size-overflow-wording.zh.md
+  s_85d8c50cd03d26::t_c6684c97cff300 1-35
+.agents/notes/implemented/bug-fix/2026-08-23-context-size-overflow-wording.i18n.yaml
+  s_85d8c50cd03d26::t_21d9d31ab8d590 1-6
+packages/llm/llm/README.i18n.yaml
+  s_85d8c50cd03d26::t_5f0b91d514efa3 5-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "0e242224fca467d51c74e7e49684bf96b8a3adfb",
+  "prompts": {},
+  "sessions": {
+    "s_85d8c50cd03d26": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "52f9d358-98ed-4d6d-be87-2c71ea4150b9",
+        "model": "claude-opus-5"
+      },
+      "human_author": "nnnet <21066097+nnnet@users.noreply.github.com>"
+    }
+  }
+}
