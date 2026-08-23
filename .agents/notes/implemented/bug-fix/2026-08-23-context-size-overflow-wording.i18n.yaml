@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-23-context-size-overflow-wording.md
+2026-08-23-context-size-overflow-wording.md: bee27507aafcb0034843d6d9d6df7fdbed226fab
+2026-08-23-context-size-overflow-wording.zh.md: 4ae20072b972341c1dc3d4451d1469f7ffd8f5e8

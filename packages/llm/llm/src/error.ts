@@ -47,9 +47,16 @@ export const EMPTY_RESPONSE_CODE = 'EMPTY_RESPONSE'
  */
 export const INVALID_CREDENTIAL_CODE = 'INVALID_CREDENTIAL'
 
-/** Structured codes and plain phrases that explicitly name a context bound being exceeded. */
+/**
+ * Structured codes and plain phrases that explicitly name a context bound being
+ * exceeded. `size` joins `length`/`window` because llama.cpp-derived servers
+ * (LM Studio) word the overflow as `Context size has been exceeded.`, and the
+ * optional copula run accepts that passive phrasing beside the joined
+ * `context_length_exceeded` code form.
+ */
 const STRUCTURED_CONTEXT_OVERFLOW = new RegExp(
-  String.raw`(?:^|[^a-z0-9])context[\s_-](?:length|window)[\s_-]`
+  String.raw`(?:^|[^a-z0-9])context[\s_-](?:length|window|size)[\s_-]`
+  + String.raw`(?:(?:has|have|is|are|was|were)[\s_-]+)?(?:been[\s_-]+)?`
   + String.raw`(?:exceed(?:ed|s)?|overflow(?:ed)?|limit[\s_-]exceeded)(?:$|[^a-z0-9])`,
   'i',
 )
