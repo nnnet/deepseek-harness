@@ -7,7 +7,8 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { contentHasImage, createUserMessage, BlockAssembler, LlmError } from '@deepseek-ai/dsh-llm'
 import type {
-  ContentBlock, FinishReason, GenerateOptions, Message, TokenUsage, ToolSchema,
+  ContentBlock, FinishReason, GenerateOptions, LlmCallConfig, Message, TokenUsage, ToolSchema,
+  UserMessage,
 } from '@deepseek-ai/dsh-llm'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 
@@ -16,6 +17,12 @@ interface SummaryConfig {
   readonly summarizationModel: string
   readonly maxTokens: number
 }
+
+/** The configured summarization pair, independent of the surrounding policy. */
+type SummarizationPair = Pick<SummaryConfig, 'summarizationProvider' | 'summarizationModel'>
+
+/** An exact provider/model route for one LLM call. */
+type CallTarget = Pick<LlmCallConfig, 'provider' | 'model'>
 
 /** Tags wrapping the structured summary inside the landed checkpoint node. */
 const SUMMARY_OPEN_TAG = '<compacted-summary>'
@@ -64,6 +71,31 @@ const COMPACTION_INSTRUCTION = [
   '- Output only the checkpoint text: do not call any tool or take any other action.',
   `- If the conversation already contains a ${SUMMARY_OPEN_TAG} block, it is a PRIOR checkpoint. Do not copy it forward verbatim: preserve still-true facts, drop stale ones, and merge newer information into a single consolidated summary under the same structure.`,
 ].join('\n')
+
+/**
+ * Build the trailing compaction directive exactly as the summarization call
+ * sends it. The engine prices this message when it budgets how much surface the
+ * overflow replay may carry, so both callers must read the same text.
+ * @returns the final user message appended after the replayed conversation.
+ */
+export function compactionInstructionMessage(): UserMessage {
+  return createUserMessage({
+    content: [{ type: 'text', text: COMPACTION_INSTRUCTION }],
+    source: { kind: 'plugin', plugin: 'dsh-compaction-basic' },
+  })
+}
+
+/**
+ * Resolve the distinct summarization route a policy configures. An empty pair
+ * means the conversation's own route summarizes, which every caller resolves
+ * from its own fallback chain.
+ * @param config - resolved summarization provider/model pair.
+ * @returns the configured route, or `undefined` when the conversation route is inherited.
+ */
+export function configuredSummarizationTarget(config: SummarizationPair): CallTarget | undefined {
+  if (config.summarizationProvider.length === 0) return undefined
+  return { provider: config.summarizationProvider, model: config.summarizationModel }
+}
 
 /** Framing that makes the replacement user message established context. */
 const CHECKPOINT_PREAMBLE =
@@ -126,16 +158,13 @@ export async function summarizeWithLlm(
   signal?: AbortSignal,
 ): Promise<SummaryResult> {
   const latest = agent.session.requestHeader()?.config
-  const configured = config.summarizationProvider.length === 0
-    ? undefined
-    : { provider: config.summarizationProvider, model: config.summarizationModel }
   const agentTarget = agent.options.provider !== undefined
     && agent.options.provider.length > 0
     && agent.options.model !== undefined
     && agent.options.model.length > 0
     ? { provider: agent.options.provider, model: agent.options.model }
     : undefined
-  const target = configured ?? latest ?? agentTarget
+  const target = configuredSummarizationTarget(config) ?? latest ?? agentTarget
   if (target === undefined) {
     throw new Error(
       'no provider/model available for summarization: set both BasicCompactionConfig summarization fields, route one request, or set both AgentOptions fields',
@@ -143,13 +172,7 @@ export async function summarizeWithLlm(
   }
 
   const assembler = new BlockAssembler()
-  const messages: Message[] = [
-    ...input.messages,
-    createUserMessage({
-      content: [{ type: 'text', text: COMPACTION_INSTRUCTION }],
-      source: { kind: 'plugin', plugin: 'dsh-compaction-basic' },
-    }),
-  ]
+  const messages: Message[] = [...input.messages, compactionInstructionMessage()]
   const options: GenerateOptions = {
     provider: target.provider,
     model: target.model,

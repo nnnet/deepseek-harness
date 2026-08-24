@@ -8,7 +8,7 @@ import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { CompactionEngine, ManualCompactionError } from '@deepseek-ai/dsh-compaction'
 import type { CompactionResult, CompactionTrigger } from '@deepseek-ai/dsh-compaction'
-import type { TokenMeter } from '@deepseek-ai/dsh-token-meter'
+import type { TokenMeasurement, TokenMeter } from '@deepseek-ai/dsh-token-meter'
 import type { Session } from '@deepseek-ai/dsh-session'
 import { CONTEXT_WINDOW_EXCEEDED_CODE, assertNever } from '@deepseek-ai/dsh-llm'
 import type { LlmCallConfig } from '@deepseek-ai/dsh-llm'
@@ -25,14 +25,16 @@ import {
 import {
   assertNoActiveCompaction,
   compactSurfaceRegion,
+  overflowRetainTokens,
   selectCompactableRange,
 } from './region.ts'
-import { summarizeWithLlm } from './summarizer.ts'
+import { configuredSummarizationTarget, summarizeWithLlm } from './summarizer.ts'
 import type { SummarizationInput, SummaryResult } from './summarizer.ts'
 import type {
   BasicCompactionConfig,
   ModelCompactPolicyConfig,
   ResolvedConfig,
+  ResolvedTargetPolicy,
 } from './types.ts'
 
 export type {
@@ -248,8 +250,9 @@ export class BasicCompactionEngine extends CompactionEngine {
   /**
    * Compact for replayed step-boundary pressure or one provider-confirmed context
    * overflow. Both triggers price the latest durable routed request envelope;
-   * overflow bypasses the normal threshold and retained-tail policy so it can
-   * force one useful balanced reduction.
+   * overflow bypasses the normal threshold so it can force one useful balanced
+   * reduction, and replaces the configured retained tail with whatever the
+   * summarization call must keep out of its own replay to fit.
    * @param agent - agent whose latest durable routed request is measured.
    * @param trigger - normal step-boundary pressure or context-overflow recovery.
    * @param signal - live turn cancellation signal forwarded to summarization.
@@ -285,7 +288,11 @@ export class BasicCompactionEngine extends CompactionEngine {
         prune.pruneSession(agent.session)
         measurement = meter.measure(agent.session)
       }
-      const range = selectCompactableRange(agent.session, measurement, 0)
+      const range = selectCompactableRange(
+        agent.session,
+        measurement,
+        this._overflowRetainTokens(agent.session, measurement, policy),
+      )
       if (range === null) return null
       return this.compactRegion(range.start, range.end, agent, signal)
     }
@@ -329,6 +336,45 @@ export class BasicCompactionEngine extends CompactionEngine {
       `compaction still above threshold after ${spec.compactionRetries + 1} compaction attempts `
       + `(${measurement.totalTokens} estimated tokens >= threshold ${spec.thresholdTokens})`,
     )
+  }
+
+  /**
+   * Recent-surface budget that keeps the overflow summarization call inside the
+   * window the routed request just exceeded.
+   *
+   * Only the conversation's own route has a window this session describes, in
+   * the durable `request/context` metadata the overflowing request resolved. A
+   * configured distinct summarizer answers on a window that metadata says
+   * nothing about, and a route that advertises no window leaves nothing to
+   * derive a budget from; both replay the whole compactable head as every
+   * overflow recovery did before.
+   * @param session - session supplying the durable routed-context metadata.
+   * @param measurement - post-prune surface and request-pressure snapshot.
+   * @param policy - merged policy supplying the summarizer pair and generation cap.
+   * @returns recent surface tokens to retain verbatim during overflow recovery.
+   */
+  private _overflowRetainTokens(
+    session: Session,
+    measurement: TokenMeasurement,
+    policy: ResolvedTargetPolicy,
+  ): number {
+    if (configuredSummarizationTarget(policy) !== undefined) return 0
+    const context = session.requestContext()
+    if (context?.contextWindow === undefined) return 0
+    const retain = overflowRetainTokens(
+      this.ctx.tokenMeter,
+      measurement,
+      context.contextWindow,
+      policy.maxTokens,
+    )
+    if (retain !== null) return retain
+    this.ctx.logger.warn(
+      `context-overflow compaction cannot bound the summarization replay for ${context.provider}/`
+      + `${context.model}: maxTokens ${policy.maxTokens} leaves no room in its `
+      + `${context.contextWindow}-token context window; lower maxTokens or configure a separate `
+      + 'summarizationProvider/summarizationModel with a larger window',
+    )
+    return 0
   }
 
   /**

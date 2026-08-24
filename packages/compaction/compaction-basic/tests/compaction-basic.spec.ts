@@ -3,7 +3,8 @@ import { Context } from '@deepseek-ai/cordis'
 import { AttachmentId } from '@deepseek-ai/dsh-attachment'
 import BasicCompactionEngine from '@deepseek-ai/dsh-compaction-basic'
 import type { BasicCompactionConfig } from '@deepseek-ai/dsh-compaction-basic'
-import { selectCompactableRange } from '@deepseek-ai/dsh-compaction-basic/src/region.ts'
+import { overflowRetainTokens, selectCompactableRange } from '@deepseek-ai/dsh-compaction-basic/src/region.ts'
+import { compactionInstructionMessage } from '@deepseek-ai/dsh-compaction-basic/src/summarizer.ts'
 import type { SummarizationInput, SummaryResult } from '@deepseek-ai/dsh-compaction-basic/src/summarizer.ts'
 import { CompactionId, toolPairingBalancedAfter, toolPairingBalancedBefore } from '@deepseek-ai/dsh-compaction'
 import {
@@ -563,6 +564,84 @@ describe('pressure measurement and retention', () => {
       .rejects.toThrow(/no context capacity for unknown-context\/model/)
     await expect(compactIfNeeded(compact, session, 'context-overflow'))
       .resolves.not.toBeNull()
+  })
+
+  it('prices the replay budget from the window, the summary cap, and the envelope', () => {
+    const ctx = createContext()
+    const session = conversation(4)
+    const measurement = ctx.tokenMeter.measure(session)
+    const reserved = Math.max(0, measurement.totalTokens - measurement.surfaceTokens)
+      + ctx.tokenMeter.estimateMessage(compactionInstructionMessage())
+      + 64
+
+    expect(overflowRetainTokens(ctx.tokenMeter, measurement, reserved + 300, 64))
+      .toBe(measurement.surfaceTokens - 300)
+    expect(overflowRetainTokens(
+      ctx.tokenMeter,
+      measurement,
+      reserved + measurement.surfaceTokens,
+      64,
+    )).toBe(0)
+    expect(overflowRetainTokens(ctx.tokenMeter, measurement, reserved, 64)).toBeNull()
+  })
+
+  it('withholds a recent tail from the overflow replay under the routed window', async () => {
+    const ctx = createContext()
+    const compact = new TestCompactionEngine(ctx, { auto: false, maxTokens: 64 })
+    const bounded = conversation(4)
+    const budget = 300
+    const measurement = ctx.tokenMeter.measure(bounded)
+    bounded.append('request/context', {
+      provider: MODEL,
+      model: MODEL,
+      contextWindow: Math.max(0, measurement.totalTokens - measurement.surfaceTokens)
+        + ctx.tokenMeter.estimateMessage(compactionInstructionMessage())
+        + 64
+        + budget,
+    })
+    const unbounded = conversation(4)
+
+    const withBudget = await compactIfNeeded(compact, bounded, 'context-overflow')
+    const withoutBudget = await compactIfNeeded(compact, unbounded, 'context-overflow')
+
+    expect(withBudget!.shadowedTokenCount).toBeLessThanOrEqual(budget)
+    expect(withBudget!.shadowedSeqs.length)
+      .toBeLessThan(withoutBudget!.shadowedSeqs.length)
+  })
+
+  it('replays the whole compactable head when a separate summarizer is configured', async () => {
+    const ctx = createContext()
+    const compact = new TestCompactionEngine(ctx, {
+      auto: false,
+      maxTokens: 64,
+      summarizationProvider: 'summary-provider',
+      summarizationModel: 'summary-model',
+    })
+    const session = conversation(4)
+    session.append('request/context', { provider: MODEL, model: MODEL, contextWindow: 900 })
+    const unbounded = conversation(4)
+
+    const configured = await compactIfNeeded(compact, session, 'context-overflow')
+    expect(configured!.shadowedSeqs.length)
+      .toBe((await compactIfNeeded(compact, unbounded, 'context-overflow'))!.shadowedSeqs.length)
+  })
+
+  it('warns and replays everything when the summary cap exhausts the routed window', async () => {
+    const ctx = createContext()
+    const warnings: string[] = []
+    ctx.logger.warn = ((message: string) => void warnings.push(message)) as typeof ctx.logger.warn
+    const compact = new TestCompactionEngine(ctx, { auto: false, maxTokens: 8_192 })
+    const session = conversation(4)
+    session.append('request/context', { provider: MODEL, model: MODEL, contextWindow: 900 })
+    const unbounded = conversation(4)
+
+    const result = await compactIfNeeded(compact, session, 'context-overflow')
+
+    expect(result!.shadowedSeqs.length)
+      .toBe((await compactIfNeeded(compact, unbounded, 'context-overflow'))!.shadowedSeqs.length)
+    expect(warnings).toContainEqual(expect.stringContaining(
+      'maxTokens 8192 leaves no room in its 900-token context window',
+    ))
   })
 
   it('declines forced overflow when the whole surface is one indivisible tool pair', async () => {

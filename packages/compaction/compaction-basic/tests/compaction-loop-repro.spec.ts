@@ -14,6 +14,7 @@ import * as AgentInvariant from '@deepseek-ai/dsh-agent/invariant'
 import * as AgentLoopInvariant from '@deepseek-ai/dsh-agent-loop/invariant'
 import { BasicCompactionEngine } from '@deepseek-ai/dsh-compaction-basic'
 import TokenMeter from '@deepseek-ai/dsh-token-meter'
+import { estimateMessage, ROLE_OVERHEAD } from '@deepseek-ai/dsh-token-meter/src/estimate.ts'
 import * as LlmRetry from '@deepseek-ai/dsh-llm-retry'
 import { Session, SessionId, type SessionEvent, type SurfaceEvent } from '@deepseek-ai/dsh-session'
 
@@ -65,6 +66,75 @@ class StepwiseToolAdapter extends LlmAdapter {
     }
     yield { type: 'block-start', index: 0, blockType: 'text' }
     yield { type: 'block-end', index: 0, block: { type: 'text', text: 'all done' } }
+    yield { type: 'finish', reason: { kind: 'stop' } }
+  }
+}
+
+/**
+ * Price one request the way the token meter prices the session it replays, so a
+ * window-enforcing adapter and compaction-basic agree on what fits.
+ * @param options - the generate options the adapter received.
+ * @returns heuristic input tokens plus the reserved generation cap.
+ */
+function requestTokens(options: GenerateOptions): number {
+  const system = options.system === undefined
+    ? 0
+    : Math.ceil(options.system.length / 4) + ROLE_OVERHEAD
+  const tools = options.tools === undefined || options.tools.length === 0
+    ? 0
+    : Math.ceil(JSON.stringify(options.tools).length / 4) + 4
+  return system
+    + tools
+    + options.messages.reduce((total, message) => total + estimateMessage(message), 0)
+    + (options.maxTokens ?? 0)
+}
+
+/**
+ * A local-server adapter that enforces its advertised window on every request,
+ * including the auxiliary summarization call, the way llama.cpp-derived servers
+ * do. Nothing is special-cased for compaction: a summarization call that
+ * replays the conversation that just overflowed is rejected identically.
+ */
+class WindowEnforcingAdapter extends LlmAdapter {
+  readonly conversationRequests: GenerateOptions[] = []
+  readonly summaryRequests: GenerateOptions[] = []
+  readonly rejectedTokens: number[] = []
+
+  constructor(private readonly contextWindow: number) {
+    super()
+  }
+
+  override resolveModel(provider: string, model: string): Promise<LlmResolvedModelInfo> {
+    return Promise.resolve({
+      provider,
+      id: model,
+      name: model,
+      context: { contextWindow: this.contextWindow },
+    })
+  }
+
+  override async * stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
+    const requested = requestTokens(options)
+    const trailing = options.messages.at(-1)?.content
+      .map(block => (block.type === 'text' ? block.text : ''))
+      .join('') ?? ''
+    const summarizing = trailing.includes('acting as a compaction engine')
+    if (summarizing) this.summaryRequests.push(options)
+    else this.conversationRequests.push(options)
+    if (requested > this.contextWindow) {
+      this.rejectedTokens.push(requested)
+      throw new LlmError(
+        `request (${requested} tokens) exceeds the available context size `
+        + `(${this.contextWindow} tokens), try increasing it`,
+        CONTEXT_WINDOW_EXCEEDED_CODE,
+      )
+    }
+    yield { type: 'block-start', index: 0, blockType: 'text' }
+    yield {
+      type: 'block-end',
+      index: 0,
+      block: { type: 'text', text: summarizing ? 'BOUNDED CHECKPOINT' : 'answered from the checkpoint' },
+    }
     yield { type: 'finish', reason: { kind: 'stop' } }
   }
 }
@@ -184,13 +254,11 @@ function waitForIdle(ctx: Context, agent: Agent): Promise<void> {
   })
 }
 
-function overflowHistorySeed(): SessionEvent[] {
+function overflowHistorySeed(turns = 2): SessionEvent[] {
   const session = Session.create(SessionId('overflow-history-seed'))
-  for (let turn = 1; turn <= 2; turn += 1) {
-    const sentinel = turn === 1 ? 'OLD HISTORY SENTINEL' : 'RECENT HISTORY'
-    session.append('turn/start', {
-      turn,
-    })
+  for (let turn = 1; turn <= turns; turn += 1) {
+    const sentinel = turn === 1 ? 'OLD HISTORY SENTINEL' : `RECENT HISTORY ${turn}`
+    session.append('turn/start', { turn })
     session.append('user/message', createUserMessage({
       content: [{ type: 'text', text: `${sentinel} ${'old context '.repeat(200)}` }],
       source: { kind: 'user' },
@@ -384,6 +452,57 @@ describe('context-overflow recovery across the real loop and compaction-basic', 
       }
     },
   )
+
+  it('keeps the recovery summarization inside the window the request just exceeded', async () => {
+    const ctx = new Context()
+    const contextWindow = 4_000
+    const adapter = new WindowEnforcingAdapter(contextWindow)
+    await mountAgentLoopTestDependencies(ctx)
+    await mountInvariants(ctx)
+    await ctx.plugin(AgentLoop, { agents: [] })
+    await ctx.plugin(TokenMeter)
+    ctx.llm.registerAdapter(['mock'], adapter)
+    await ctx.plugin(BasicCompactionEngine, {
+      thresholdRatio: 1,
+      retainTokens: 100,
+      maxTokens: 256,
+      compactionRetries: 0,
+      maxOverflowRetries: 1,
+    })
+
+    try {
+      const { agent } = await ctx.agentLoop.createAgent(ctx, {
+        sessionId: SessionId('bounded-overflow-replay'),
+        seed: overflowHistorySeed(5),
+        agentOptions: { provider: 'mock', model: 'mock' },
+      })
+      agent.followup(createUserMessage({
+        content: [{ type: 'text', text: 'continue from history' }],
+        source: { kind: 'user' },
+      }))
+      await agent.whenIdle()
+
+      // The seeded history overflows once, and the summarization call that
+      // recovers it is accepted rather than rejected for the same reason.
+      expect(adapter.rejectedTokens).toHaveLength(1)
+      expect(adapter.summaryRequests).toHaveLength(1)
+      expect(requestTokens(adapter.summaryRequests[0]!)).toBeLessThanOrEqual(contextWindow)
+      expect(adapter.conversationRequests).toHaveLength(2)
+
+      // Recovery keeps a recent tail verbatim instead of replaying everything,
+      // so the checkpoint replaces only the head the budget could carry.
+      const retry = JSON.stringify(adapter.conversationRequests[1]!.messages)
+      expect(retry).toContain('BOUNDED CHECKPOINT')
+      expect(retry).not.toContain('OLD HISTORY SENTINEL')
+      expect(retry).toContain('RECENT HISTORY 5')
+      expect(agent.session.events.at(-1)).toMatchObject({
+        type: 'turn/end',
+        data: { reason: { kind: 'completed' } },
+      })
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
 
   it('keeps context-overflow and transient retry budgets independent in one sequence', async () => {
     const ctx = new Context()
