@@ -1,0 +1,33 @@
+packages/compaction/compaction-basic/src/summarizer.ts
+  s_58b77991f87f58::t_23a81695f2bd97 10-11,21-26,75-98,167,175
+  s_58b77991f87f58::t_3a69da160a6079 99
+packages/compaction/compaction-basic/tests/compaction-loop-repro.spec.ts
+  s_58b77991f87f58::t_41b360e78f3ee4 506
+  s_58b77991f87f58::t_23a81695f2bd97 17,73-141,257,259-261,456-505
+packages/compaction/compaction-basic/src/index.ts
+  s_58b77991f87f58::t_c8d53ce86f0987 376,378-379
+  s_58b77991f87f58::t_23a81695f2bd97 11,28,31,37,253-255,291-295,341-375,377
+packages/compaction/compaction-basic/tests/compaction-basic.spec.ts
+  s_58b77991f87f58::t_23a81695f2bd97 6-7,569-642,644
+  s_58b77991f87f58::t_fc1eae72d597ff 643
+  s_58b77991f87f58::t_147c578ce8dd5f 645-646
+packages/compaction/compaction-basic/src/region.ts
+  s_58b77991f87f58::t_c152a6f3258a42 122-123
+  s_58b77991f87f58::t_23a81695f2bd97 24,90-121
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "7f4fa8b3cc0c1346b7c082a3ef24638f6bb5415a",
+  "prompts": {},
+  "sessions": {
+    "s_58b77991f87f58": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "859d364f-64de-4103-9b58-c5e082db9d47",
+        "model": "claude-opus-5"
+      },
+      "human_author": "nnnet <21066097+nnnet@users.noreply.github.com>"
+    }
+  }
+}
