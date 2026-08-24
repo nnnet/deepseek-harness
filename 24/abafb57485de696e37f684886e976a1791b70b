@@ -1,0 +1,112 @@
+packages/llm/llm-deepseek/src/adapter.ts
+  s_58b77991f87f58::t_b693f5d32ba5c1 27
+  s_58b77991f87f58::t_441b27d698cf1e 197-202,206,219
+  s_58b77991f87f58::t_1fb51a033a4e6a 196
+packages/attachment/attachment/README.zh.md
+  s_58b77991f87f58::t_604e61f3c52b68 7
+packages/llm/llm-pi-ai/tests/adapter.spec.ts
+  s_58b77991f87f58::t_5853cb93dce213 311
+.agents/notes/implemented/bug-fix/2026-08-24-request-image-media-type-negotiation.md
+  s_58b77991f87f58::t_a29775e004f8b6 1-45
+docs/subsystems/attachment.i18n.yaml
+  s_58b77991f87f58::t_b49383a2484a02 5-6
+packages/attachment/attachment/tests/index.spec.ts
+  s_58b77991f87f58::t_7ed51d27829c34 146,151
+  s_58b77991f87f58::t_5cd42dd10c6720 16-19
+docs/config-catalog.md
+  s_58b77991f87f58::t_108643812c9dba 1096-1102,1235-1237,1254
+docs/subsystems/attachment.md
+  s_58b77991f87f58::t_9421828565865c 103-111
+docs/config-catalog.zh.md
+  s_58b77991f87f58::t_5824cc1a6b3a2f 1098-1104,1237-1239,1256
+packages/attachment/attachment-local/README.zh.md
+  s_58b77991f87f58::t_bc785e7468c2ac 26
+docs/config-catalog.i18n.yaml
+  s_58b77991f87f58::t_5824cc1a6b3a2f 5-6
+packages/llm/llm-pi-ai/src/config.ts
+  s_58b77991f87f58::t_74b10ab7872ebe 227
+  s_58b77991f87f58::t_b3d868a9996dc5 60-68,70-74
+  s_58b77991f87f58::t_66cb6094e57a92 492
+  s_58b77991f87f58::t_0d1678caa024d0 69,76-78,82-84,205,228
+  s_58b77991f87f58::t_d695dfd137bd31 75,79-81
+  s_58b77991f87f58::t_1ff96db31a73b7 363-364
+  s_58b77991f87f58::t_3c34458f450e6f 452-457
+  s_58b77991f87f58::t_e37ac69f23f8a9 199-204
+packages/attachment/attachment-local/tests/request-image-verification.spec.ts
+  s_58b77991f87f58::t_ef0111251e2c6f 23-26
+  s_58b77991f87f58::t_7ed51d27829c34 45
+.agents/notes/implemented/bug-fix/2026-08-24-request-image-media-type-negotiation.i18n.yaml
+  s_58b77991f87f58::t_5043107e65053c 1-6
+packages/extensions/tool-cordis/src/api-catalog.ts
+  s_58b77991f87f58::t_108643812c9dba 3466
+packages/llm/llm-pi-ai/src/adapter.ts
+  s_58b77991f87f58::t_97b86b19a68715 366
+packages/attachment/attachment/src/types.ts
+  s_58b77991f87f58::t_f4769539e2b97c 76-84
+packages/attachment/attachment-local/tests/request-image.spec.ts
+  s_58b77991f87f58::t_5382fcf7a6e3df 45-59
+  s_58b77991f87f58::t_840a784e52b94c 293
+  s_58b77991f87f58::t_62c1afc975c00e 196-200,243-247,263-267,281-285,391-395
+  s_58b77991f87f58::t_037b7da379480c 291-292,294,297-335,355-374
+  s_58b77991f87f58::t_5e99c77cc7e3ff 60-76
+  s_58b77991f87f58::t_ef0111251e2c6f 10-13
+  s_58b77991f87f58::t_7ed51d27829c34 115,130,132,140,147,201-203,248,408,438,471
+  s_58b77991f87f58::t_8c9bef74f3f849 295-296
+  s_58b77991f87f58::t_bfd80dc7bd5096 336-337,339-354
+  s_58b77991f87f58::t_00b26fc24986e5 338
+packages/attachment/attachment/README.md
+  s_58b77991f87f58::t_de2c60e3064653 7
+.agents/notes/implemented/bug-fix/2026-08-24-request-image-media-type-negotiation.zh.md
+  s_58b77991f87f58::t_365f09b68d6881 1-45
+packages/llm/llm-pi-ai/tests/config.spec.ts
+  s_58b77991f87f58::t_7ffe709dade134 55-61
+packages/llm/llm-pi-ai/README.md
+  s_58b77991f87f58::t_bb5639483aa6f1 203
+  s_58b77991f87f58::t_de2c60e3064653 126
+packages/llm/llm-pi-ai/README.zh.md
+  s_58b77991f87f58::t_de2c60e3064653 127
+  s_58b77991f87f58::t_bb5639483aa6f1 204
+packages/attachment/attachment-local/README.md
+  s_58b77991f87f58::t_6615ffef5642ea 26
+packages/llm/llm-pi-ai/tests/convert.spec.ts
+  s_58b77991f87f58::t_e79bdccbe8a1ac 11-13,119
+packages/attachment/attachment-local/src/request-image.ts
+  s_58b77991f87f58::t_8c9f9d898ef4a9 214-215
+  s_58b77991f87f58::t_763c2646f22253 264
+  s_58b77991f87f58::t_dcb164eeb1a55f 226-233
+  s_58b77991f87f58::t_a5f3ac2c3f6ee4 20
+  s_58b77991f87f58::t_0e697991a12711 84-89
+  s_58b77991f87f58::t_c55e53d765e80c 24-26
+  s_58b77991f87f58::t_ca5349cc979749 98
+  s_58b77991f87f58::t_52dffd3829d8c8 190-191,193-194
+  s_58b77991f87f58::t_581bcb81978fae 146-175,182,185-189,192,195-202
+packages/llm/llm-deepseek/tests/adapter.spec.ts
+  s_58b77991f87f58::t_e79bdccbe8a1ac 27-29,141,145,149,231,445,496,502
+packages/attachment/attachment-local/README.i18n.yaml
+  s_58b77991f87f58::t_bc785e7468c2ac 5-6
+packages/llm/llm-pi-ai/src/context.ts
+  s_58b77991f87f58::t_59e28447949966 230
+  s_58b77991f87f58::t_c325314e7c72e5 18-22
+docs/subsystems/attachment.zh.md
+  s_58b77991f87f58::t_9421828565865c 103-111
+packages/llm/llm-pi-ai/README.i18n.yaml
+  s_58b77991f87f58::t_bc785e7468c2ac 5-6
+packages/attachment/attachment/README.i18n.yaml
+  s_58b77991f87f58::t_bc785e7468c2ac 5-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "24abafb57485de696e37f684886e976a1791b70b",
+  "prompts": {},
+  "sessions": {
+    "s_58b77991f87f58": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "859d364f-64de-4103-9b58-c5e082db9d47",
+        "model": "claude-opus-5"
+      },
+      "human_author": "nnnet <21066097+nnnet@users.noreply.github.com>"
+    }
+  }
+}
