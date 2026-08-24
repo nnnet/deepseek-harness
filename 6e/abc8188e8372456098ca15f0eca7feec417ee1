@@ -1,0 +1,33 @@
+.agents/notes/implemented/bug-fix/2026-08-24-overflow-summarization-replay-budget.i18n.yaml
+  s_58b77991f87f58::t_65d25b833812f1 1-6
+.agents/notes/implemented/bug-fix/2026-08-24-overflow-summarization-replay-budget.md
+  s_58b77991f87f58::t_15b97f58151d31 1-43
+packages/compaction/compaction-basic/README.i18n.yaml
+  s_58b77991f87f58::t_7e3a5380e9758c 5-6
+packages/compaction/compaction-basic/README.md
+  s_58b77991f87f58::t_b5a9495ace0c2b 21
+  s_58b77991f87f58::t_aa99485bc1da65 37
+  s_58b77991f87f58::t_df07d6fdc7dd38 162
+packages/compaction/compaction-basic/README.zh.md
+  s_58b77991f87f58::t_a5133ebacee156 21
+  s_58b77991f87f58::t_931beda9a27b44 37
+  s_58b77991f87f58::t_78dc8397a85771 162
+.agents/notes/implemented/bug-fix/2026-08-24-overflow-summarization-replay-budget.zh.md
+  s_58b77991f87f58::t_a8a7b8819a4309 1-43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "6eabc8188e8372456098ca15f0eca7feec417ee1",
+  "prompts": {},
+  "sessions": {
+    "s_58b77991f87f58": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "859d364f-64de-4103-9b58-c5e082db9d47",
+        "model": "claude-opus-5"
+      },
+      "human_author": "nnnet <21066097+nnnet@users.noreply.github.com>"
+    }
+  }
+}
