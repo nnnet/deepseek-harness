@@ -363,6 +363,7 @@ export class PiAiAdapter extends LlmAdapter {
         : await toPiContext({ ...options, signal: watchdog.signal }, attachments, onReplayDegrade, profile.maxRequestImageBytes, {
           maxPixels: profile.requestImagePixelBudget,
           maxBytes: profile.requestImageMaxBytes,
+          mediaTypes: profile.requestImageMediaTypes,
         })
       const events = snapshot.models.streamSimple(model, context, {
         ...profileOptions(profile, reasoning, apiKey),

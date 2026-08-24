@@ -1095,6 +1095,13 @@ export interface PiAiProviderProfile {
   requestImagePixelBudget?: number
   /** Raw encoded-byte cap for each deterministic inline request version. */
   requestImageMaxBytes?: number
+  /**
+   * Image encodings this route's endpoint can decode. Each request version is
+   * re-encoded into one of them, so narrowing the list to what a local server
+   * decodes is what keeps its vision requests from being refused; an empty list
+   * is refused rather than read as "no answer".
+   */
+  requestImageMediaTypes?: PiAiRequestImageMediaType[]
   /** Provider-owned model-request retry policy; omission uses normal mode with five retries. */
   retryPolicy?: RetryPolicyConfig
 }
@@ -1227,6 +1234,9 @@ export interface PiAiCompatProfile {
 /** One request modality a pi-ai model may accept. */
 export type PiAiModality = Model<Api>['input'][number]
 
+/** One encoding a pi-ai route may declare its endpoint decodes. */
+export type PiAiRequestImageMediaType = typeof REQUEST_IMAGE_MEDIA_TYPES[number]
+
 /**
  * Selectable reasoning efforts for one model: each key is a level the model
  * offers (and selectors show), and its value is the wire spelling dispatch
@@ -1243,7 +1253,7 @@ export type PiAiThinkingFormat = NonNullable<OpenAICompletionsCompat['thinkingFo
 
 依赖：`Api`（`@earendil-works/pi-ai`）· `CacheRetention`（`@earendil-works/pi-ai`）· `Model`（`@earendil-works/pi-ai`）· `ModelThinkingLevel`（`@earendil-works/pi-ai`）· `OpenAICompletionsCompat`（`@earendil-works/pi-ai`）· [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts) · `ThinkingBudgets`（`@earendil-works/pi-ai`）· `Transport`（`@earendil-works/pi-ai`)
 
-来源：[`packages/llm/llm-pi-ai/src/config.ts:213`](../packages/llm/llm-pi-ai/src/config.ts)
+来源：[`packages/llm/llm-pi-ai/src/config.ts:247`](../packages/llm/llm-pi-ai/src/config.ts)
 
 <a id="deepseek-aidsh-llm-replay"></a>
 

@@ -20,6 +20,10 @@ vi.mock('../src/image.ts', async (importOriginal) => {
 
 import LocalAttachmentStore from '../src/index.ts'
 
+/** Every encoding the request-image encoder can produce. */
+const ALL_MEDIA_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const
+
+
 const homes: string[] = []
 
 afterEach(async () => {
@@ -38,7 +42,7 @@ describe('request image verification', () => {
     const attachment = await attachments.saveImage({ data: source, mediaType: 'image/png' })
     control.mismatch = true
 
-    await expect(attachments.readImageRequest(attachment, { maxPixels: 16 * 16, maxBytes: 1024 * 1024 }))
+    await expect(attachments.readImageRequest(attachment, { maxPixels: 16 * 16, maxBytes: 1024 * 1024, mediaTypes: ALL_MEDIA_TYPES }))
       .rejects.toMatchObject({
         code: 'ATTACHMENT_WRITE_FAILED',
         message: 'Encoded model-request image does not match its verified 8-bit sRGB metadata.',

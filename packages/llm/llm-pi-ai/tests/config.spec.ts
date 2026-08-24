@@ -52,6 +52,13 @@ describe('modality schema boundary', () => {
       .toThrow(/defaultInput must name at least one modality/)
   })
 
+  it('refuses a route whose endpoint could decode no image encoding', () => {
+    expect(routeWith({ requestImageMediaTypes: [] })).not.toThrow()
+    expect(() => { assertServiceable(routeWith({ requestImageMediaTypes: [] })() as Config) })
+      .toThrow(/requestImageMediaTypes must name at least one media type/)
+    expect(routeWith({ requestImageMediaTypes: ['image/gif'] })).toThrow(/expected/)
+  })
+
   type Materialized = {
     providers: Record<string, { defaultInput?: unknown; models?: { input?: unknown }[] }>
   }

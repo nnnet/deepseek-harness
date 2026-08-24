@@ -24,6 +24,7 @@ import type {
   AttachmentId,
   AttachmentStore,
   ImageAttachmentRef,
+  ImageMediaType,
   ImageRequestPolicy,
   RequestImageAttachment,
 } from '@deepseek-ai/dsh-attachment'
@@ -193,9 +194,16 @@ function collectImageRefs(
 }
 
 /**
+ * Encodings the DeepSeek vision endpoint decodes. This adapter targets one
+ * vendor endpoint, so the set is a property of that API rather than a
+ * deployment choice.
+ */
+const REQUEST_IMAGE_MEDIA_TYPES: readonly ImageMediaType[] = ['image/png', 'image/jpeg', 'image/webp']
+
+/**
  * Resolve the request-image budgets owned by one DeepSeek model route.
  * @param model - Advertised model route and its optional image overrides.
- * @returns Complete pixel and encoded-byte budgets.
+ * @returns Complete pixel, encoded-byte, and accepted-encoding policy.
  * @internal
  */
 export function resolveRequestImagePolicy(model: DeepSeekCatalogModel): ImageRequestPolicy {
@@ -208,6 +216,7 @@ export function resolveRequestImagePolicy(model: DeepSeekCatalogModel): ImageReq
     maxBytes: model.imageMaxBytes === undefined
       ? DEFAULT_REQUEST_IMAGE_MAX_BYTES
       : model.imageMaxBytes,
+    mediaTypes: REQUEST_IMAGE_MEDIA_TYPES,
   }
 }
 

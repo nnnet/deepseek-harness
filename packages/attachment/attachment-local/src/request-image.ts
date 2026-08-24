@@ -17,9 +17,12 @@ import { encodeFirstWithinLimit, isExhaustedEncoding } from './encoding.ts'
 import { detectImage, encodedAlphaIsCompatible, probeImage } from './image.ts'
 
 /** Transform version included in every cache and upload-index identity. */
-export const REQUEST_IMAGE_TRANSFORM_VERSION = 'request-image-v4'
+export const REQUEST_IMAGE_TRANSFORM_VERSION = 'request-image-v5'
 /** DeepSeek request versions normally fit at these two preferred qualities. */
 export const REQUEST_IMAGE_QUALITIES = [85, 80] as const
+
+/** Encodings this module can produce; a policy accepting none of them serves no image. */
+export const ENCODABLE_MEDIA_TYPES: readonly ImageMediaType[] = ['image/png', 'image/jpeg', 'image/webp']
 
 interface EncodedRequestImage {
   data: Uint8Array
@@ -78,6 +81,12 @@ function checkedInteger(value: number, name: string): number {
 function validatePolicy(policy: ImageRequestPolicy): void {
   checkedInteger(policy.maxPixels, 'Image request maxPixels')
   checkedInteger(policy.maxBytes, 'Image request maxBytes')
+  if (!policy.mediaTypes.some(mediaType => ENCODABLE_MEDIA_TYPES.includes(mediaType))) {
+    throw new AttachmentError(
+      `Image request mediaTypes must accept at least one of ${ENCODABLE_MEDIA_TYPES.join(', ')}.`,
+      'INVALID_ATTACHMENT_REF',
+    )
+  }
 }
 
 function descriptor(attachment: ImageAttachmentRef, policy: ImageRequestPolicy): string {
@@ -86,6 +95,7 @@ function descriptor(attachment: ImageAttachmentRef, policy: ImageRequestPolicy):
     attachmentId: attachment.attachmentId,
     routePixelBudget: policy.maxPixels,
     encodedByteBudget: policy.maxBytes,
+    acceptedMediaTypes: [...policy.mediaTypes].sort(),
     encoding: {
       png: { compressionLevel: 9, palette: 'opaque-only' },
       webpQualities: REQUEST_IMAGE_QUALITIES,
@@ -133,21 +143,63 @@ async function encoded(
   return { data: new Uint8Array(data), mediaType, width: info.width, height: info.height }
 }
 
+/** One candidate encoding, named before a pipeline is cloned for it. */
+interface EncodingCandidate {
+  mediaType: 'image/png' | 'image/jpeg' | 'image/webp'
+  quality?: number
+}
+
+const PNG: EncodingCandidate = { mediaType: 'image/png' }
+const WEBP: readonly EncodingCandidate[] = REQUEST_IMAGE_QUALITIES.map(
+  quality => ({ mediaType: 'image/webp', quality }),
+)
+const JPEG: readonly EncodingCandidate[] = REQUEST_IMAGE_QUALITIES.map(
+  quality => ({ mediaType: 'image/jpeg', quality }),
+)
+
+/** Smallest-first encodings for one source class, before the route's accepted set applies. */
+function preferredEncodings(hasAlpha: boolean, lowColour: boolean): readonly EncodingCandidate[] {
+  if (lowColour) return [PNG, ...WEBP]
+  if (hasAlpha) return WEBP
+  return JPEG
+}
+
+/**
+ * Encodings that still carry this source once its preferred ones are refused.
+ * PNG is the universal alpha-safe answer, and JPEG only appears for a source
+ * that has no transparency to lose.
+ */
+function fallbackEncodings(hasAlpha: boolean): readonly EncodingCandidate[] {
+  return hasAlpha ? [PNG, ...WEBP] : [...JPEG, PNG, ...WEBP]
+}
+
 function encodingAttempts(
   attachment: StoredImageAttachment,
   width: number,
   height: number,
   hasAlpha: boolean,
   lowColour: boolean,
+  mediaTypes: readonly ImageMediaType[],
 ): Array<() => Promise<EncodedRequestImage>> {
   const prepared = pipeline(attachment, width, height)
-  const webp = REQUEST_IMAGE_QUALITIES.map(quality => (
-    () => encoded(prepared.clone(), 'image/webp', quality)
-  ))
-  if (lowColour) return [() => encoded(prepared.clone(), 'image/png', undefined, !hasAlpha), ...webp]
-  if (hasAlpha) return webp
-  return REQUEST_IMAGE_QUALITIES.map(quality => (
-    () => encoded(prepared.clone(), 'image/jpeg', quality)
+  const accepted = (candidates: readonly EncodingCandidate[]): EncodingCandidate[] =>
+    candidates.filter(candidate => mediaTypes.includes(candidate.mediaType))
+  const chosen = accepted(preferredEncodings(hasAlpha, lowColour))
+  const candidates = chosen.length > 0 ? chosen : accepted(fallbackEncodings(hasAlpha))
+  if (candidates.length === 0) {
+    // Only transparency can exhaust the ladder: the policy admits at least one
+    // encodable media type, and every one of them carries an opaque source.
+    throw new AttachmentError(
+      'A transparent image cannot be encoded as any of the media types this route accepts '
+      + `(${mediaTypes.join(', ')}).`,
+      'UNSUPPORTED_IMAGE_TYPE',
+    )
+  }
+  return candidates.map(candidate => () => encoded(
+    prepared.clone(),
+    candidate.mediaType,
+    candidate.quality,
+    candidate.mediaType !== 'image/png' || !hasAlpha,
   ))
 }
 
@@ -159,7 +211,8 @@ async function createRequestImage(
   let dimensions = requestImageDimensions(attachment.ref.width, attachment.ref.height, policy.maxPixels)
   if (dimensions.width === attachment.ref.width
     && dimensions.height === attachment.ref.height
-    && attachment.data.byteLength <= policy.maxBytes) {
+    && attachment.data.byteLength <= policy.maxBytes
+    && policy.mediaTypes.includes(attachment.ref.mediaType)) {
     return {
       data: attachment.data,
       mediaType: attachment.ref.mediaType,
@@ -170,7 +223,14 @@ async function createRequestImage(
   const lowColour = await hasLowColourCount(sourcePipeline(attachment))
   for (;;) {
     const encodedVersion = await encodeFirstWithinLimit(
-      encodingAttempts(attachment, dimensions.width, dimensions.height, hasAlpha, lowColour),
+      encodingAttempts(
+        attachment,
+        dimensions.width,
+        dimensions.height,
+        hasAlpha,
+        lowColour,
+        policy.mediaTypes,
+      ),
       policy.maxBytes,
     )
     if (!isExhaustedEncoding(encodedVersion)) return encodedVersion
@@ -201,6 +261,7 @@ async function readCached(
     const maximum = requestImageDimensions(attachment.ref.width, attachment.ref.height, policy.maxPixels)
     if (data.byteLength > policy.maxBytes || detected.depth !== 'uchar' || detected.space !== 'srgb'
       || detected.width > maximum.width || detected.height > maximum.height
+      || !policy.mediaTypes.includes(detected.mediaType)
       || !encodedAlphaIsCompatible(expectedAlpha, detected)) return undefined
     return { data, mediaType: detected.mediaType, width: detected.width, height: detected.height, hasAlpha: detected.hasAlpha }
   } catch (error: unknown) {

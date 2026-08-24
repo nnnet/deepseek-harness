@@ -308,6 +308,7 @@ describe('PiAiAdapter provider routing', () => {
     expect(readImageRequest).toHaveBeenCalledWith(ref, {
       maxPixels: 2048 * 2048,
       maxBytes: 1024 * 1024,
+      mediaTypes: ['image/png', 'image/jpeg', 'image/webp'],
     }, expect.any(AbortSignal))
     expect(server.paths).toEqual(['/v1/responses'])
   })

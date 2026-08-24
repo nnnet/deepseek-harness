@@ -100,6 +100,15 @@ interface ImageRequestPolicy {
   maxPixels: number
   /** Encoded-byte cap before base64 expansion or Files API upload. */
   maxBytes: number
+  /**
+   * Encodings this route's endpoint can decode. The durable normalized form is
+   * provider-independent and prefers the smallest encoding, so a route that
+   * cannot decode it needs the request version re-encoded into one it can. This
+   * is a claim about the endpoint, not a check of it: nothing interrogates a
+   * gateway for the formats it accepts, so an encoding the endpoint refuses is
+   * refused by the provider instead, mid-turn.
+   */
+  mediaTypes: readonly ImageMediaType[]
 }
 ```
 

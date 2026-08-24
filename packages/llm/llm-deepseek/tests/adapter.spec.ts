@@ -24,6 +24,9 @@ import { assemble } from './assemble.ts'
 import { closeMockServers, mockServer, textEvents } from './mock-server.ts'
 import type { Behavior } from './mock-server.ts'
 
+/** Every encoding the request-image encoder can produce. */
+const ALL_MEDIA_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const
+
 const TEST_USER_ID = '00000000-0000-4000-8000-000000000001' as AnonymousUserId
 let testHome: string
 
@@ -135,15 +138,15 @@ describe('request image policy', () => {
   it.each([
     [
       { id: 'default' },
-      { maxPixels: 640_000, maxBytes: 1024 * 1024 },
+      { maxPixels: 640_000, maxBytes: 1024 * 1024, mediaTypes: ALL_MEDIA_TYPES },
     ],
     [
       { id: 'low', imageDetail: 'low' as const },
-      { maxPixels: 512 * 512, maxBytes: 1024 * 1024 },
+      { maxPixels: 512 * 512, maxBytes: 1024 * 1024, mediaTypes: ALL_MEDIA_TYPES },
     ],
     [
       { id: 'custom', imagePixelBudget: 320_000, imageMaxBytes: 512_000 },
-      { maxPixels: 320_000, maxBytes: 512_000 },
+      { maxPixels: 320_000, maxBytes: 512_000, mediaTypes: ALL_MEDIA_TYPES },
     ],
   ])('resolves route-owned defaults and overrides for %s', (model, expected) => {
     expect(resolveRequestImagePolicy(model)).toEqual(expected)
@@ -225,7 +228,7 @@ describe('DeepSeekAdapter against a mock server', () => {
       bytes: 3,
     }])
     expect(signalSeen[0]).toBeInstanceOf(AbortSignal)
-    expect(policies).toEqual([{ maxPixels: 640_000, maxBytes: 1024 * 1024 }])
+    expect(policies).toEqual([{ maxPixels: 640_000, maxBytes: 1024 * 1024, mediaTypes: ALL_MEDIA_TYPES }])
   })
 
   it('falls back to one all-base64 request when Files API resolution fails', async () => {
@@ -439,7 +442,7 @@ describe('DeepSeekAdapter against a mock server', () => {
 
     expect(attachmentMocks.readImageRequest).toHaveBeenCalledWith(
       recent,
-      { maxPixels: 640_000, maxBytes: 1024 * 1024 },
+      { maxPixels: 640_000, maxBytes: 1024 * 1024, mediaTypes: ALL_MEDIA_TYPES },
       expect.any(AbortSignal),
     )
     const body = server.requests[0] as { messages: unknown[] }
@@ -490,13 +493,13 @@ describe('DeepSeekAdapter against a mock server', () => {
     expect(attachmentMocks.readImageRequest).toHaveBeenNthCalledWith(
       1,
       imageRef,
-      { maxPixels: 512 * 512, maxBytes: 512_000 },
+      { maxPixels: 512 * 512, maxBytes: 512_000, mediaTypes: ALL_MEDIA_TYPES },
       expect.any(AbortSignal),
     )
     expect(attachmentMocks.readImageRequest).toHaveBeenNthCalledWith(
       2,
       imageRef,
-      { maxPixels: 320_000, maxBytes: 1024 * 1024 },
+      { maxPixels: 320_000, maxBytes: 1024 * 1024, mediaTypes: ALL_MEDIA_TYPES },
       expect.any(AbortSignal),
     )
   })

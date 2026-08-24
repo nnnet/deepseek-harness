@@ -8,6 +8,9 @@ import { toPiContext } from '../src/context.ts'
 import { toPiReplayState } from '../src/replay.ts'
 import { mapStopReason, mapUsage, toStreamChunks } from '../src/stream.ts'
 
+/** Every encoding the request-image encoder can produce. */
+const ALL_MEDIA_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const
+
 function usage(input = 0, output = 0, cacheRead = 0, cacheWrite = 0): Usage {
   return {
     input,
@@ -113,7 +116,7 @@ describe('toPiContext', () => {
 
     expect(readImageRequest).toHaveBeenCalledWith(
       attachment,
-      { maxPixels: 2048 * 2048, maxBytes: 1024 * 1024 },
+      { maxPixels: 2048 * 2048, maxBytes: 1024 * 1024, mediaTypes: ALL_MEDIA_TYPES },
       undefined,
     )
     expect(context.messages[0]).toEqual({

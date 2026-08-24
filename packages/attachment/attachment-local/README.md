@@ -23,4 +23,5 @@ Normalization and request projection are deterministic. An unchanged attachment 
 - Objects are retained indefinitely; reference-aware garbage collection is deferred.
 - The local backend assumes the host and provider adapter share this filesystem service.
 - Animated GIF sources keep only their first frame; animation is outside the version-one image contract.
+- The durable normalized form is provider-independent and prefers the smallest encoding, so a route accepting fewer media types pays a second encode per request version and caches it separately.
 - The normalization and request encoders are pinned by the installed sharp/libvips build; an encoder or transform-version upgrade re-addresses future normalized attachments or request variants while existing objects stay valid.
