@@ -1,0 +1,40 @@
+name: Sync fork with upstream
+
+# Keeps this fork's default branch level with deepseek-ai/deepseek-harness.
+#
+# Uses the merge-upstream API rather than a git push: the API runs server-side,
+# so it is not blocked when the incoming commits touch .github/workflows/, which
+# a GITHUB_TOKEN push would be.
+#
+# Two GitHub behaviours to know about:
+#   - Scheduled workflows are disabled by default in forks. Enable Actions on
+#     this repository once, or the cron below never fires.
+#   - GitHub disables scheduled workflows after 60 days without repository
+#     activity, and emails the owner when it does.
+
+on:
+  schedule:
+    # 04:37 UTC daily. Off the hour on purpose: :00 is the busiest minute on
+    # the shared scheduler and jobs queued there start late.
+    - cron: '37 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge upstream into ${{ github.event.repository.default_branch }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          # Fails the job on 409 (diverged with conflicts) and on 422
+          # (no upstream configured) so the result is never silently wrong.
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/merge-upstream" \
+            -f branch="${BRANCH}" > merge.json
+          printf 'merge_type=%s\n' "$(jq -r '.merge_type // "none"' merge.json)" >> "$GITHUB_STEP_SUMMARY"
+          printf 'message=%s\n' "$(jq -r '.message // ""' merge.json)" >> "$GITHUB_STEP_SUMMARY"
