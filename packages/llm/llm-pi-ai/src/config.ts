@@ -57,6 +57,31 @@ export const DEFAULT_REQUEST_IMAGE_PIXEL_BUDGET = 2048 * 2048
 /** Default raw encoded-byte cap before inline base64 expansion. */
 export const DEFAULT_REQUEST_IMAGE_MAX_BYTES = 1024 * 1024
 
+/**
+ * Encodings assumed decodable by a route that declares none. The hosted
+ * OpenAI-compatible endpoints this adapter targets decode all three, and WebP
+ * is the smallest of them for the screenshots and diagrams a coding session
+ * attaches, so dropping it from the default would enlarge every request body
+ * for every route to accommodate the exception. The exception is a local
+ * llama.cpp-derived server, whose decoder handles PNG and JPEG only; such a
+ * route narrows this list.
+ */
+export const DEFAULT_REQUEST_IMAGE_MEDIA_TYPES: readonly PiAiRequestImageMediaType[] = [
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+]
+
+/**
+ * Encodings a route may declare. GIF is absent from the harness-wide
+ * {@link ImageMediaType} set here because request versions are always
+ * re-encoded and this adapter never produces animated output.
+ */
+export const REQUEST_IMAGE_MEDIA_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const
+
+/** One encoding a pi-ai route may declare its endpoint decodes. */
+export type PiAiRequestImageMediaType = typeof REQUEST_IMAGE_MEDIA_TYPES[number]
+
 /** Context capacity assumed for a model neither configuration nor the catalog sizes. */
 export const DEFAULT_CONTEXT_WINDOW = 262_144
 
@@ -171,6 +196,13 @@ export interface PiAiProviderProfile {
   requestImagePixelBudget?: number
   /** Raw encoded-byte cap for each deterministic inline request version. */
   requestImageMaxBytes?: number
+  /**
+   * Image encodings this route's endpoint can decode. Each request version is
+   * re-encoded into one of them, so narrowing the list to what a local server
+   * decodes is what keeps its vision requests from being refused; an empty list
+   * is refused rather than read as "no answer".
+   */
+  requestImageMediaTypes?: PiAiRequestImageMediaType[]
   /** Provider-owned model-request retry policy; omission uses normal mode with five retries. */
   retryPolicy?: RetryPolicyConfig
 }
@@ -192,6 +224,8 @@ export interface ResolvedPiAiProviderProfile
   requestImagePixelBudget: number
   /** Positive raw request-version byte cap after defaulting. */
   requestImageMaxBytes: number
+  /** Non-empty accepted request-version encodings after defaulting. */
+  requestImageMediaTypes: PiAiRequestImageMediaType[]
   /** Immutable retry policy captured with this provider route. */
   retryPolicy: ResolvedRetryPolicy
   /**
@@ -326,6 +360,8 @@ const profile = z.object({
   maxRequestImageBytes: z.number().step(1).min(1).default(DEFAULT_MAX_REQUEST_IMAGE_BYTES),
   requestImagePixelBudget: z.number().step(1).min(1).default(DEFAULT_REQUEST_IMAGE_PIXEL_BUDGET),
   requestImageMaxBytes: z.number().step(1).min(1).default(DEFAULT_REQUEST_IMAGE_MAX_BYTES),
+  requestImageMediaTypes: z.array(z.union(REQUEST_IMAGE_MEDIA_TYPES))
+    .default([...DEFAULT_REQUEST_IMAGE_MEDIA_TYPES]),
   retryPolicy: RetryPolicySchema,
 })
 
@@ -413,6 +449,12 @@ export function resolveProfiles(
     if (!Number.isSafeInteger(requestImageMaxBytes) || requestImageMaxBytes <= 0) {
       throw new Error(`llm-pi-ai: provider "${provider}" requestImageMaxBytes must be a positive safe integer`)
     }
+    // The schema's explicit default covers an absent key, so an empty list here
+    // is one someone typed: a route that accepts no encoding can serve no image.
+    const requestImageMediaTypes = [...source.requestImageMediaTypes ?? DEFAULT_REQUEST_IMAGE_MEDIA_TYPES]
+    if (requestImageMediaTypes.length === 0) {
+      throw new Error(`llm-pi-ai: provider "${provider}" requestImageMediaTypes must name at least one media type`)
+    }
     // Detached from the configuration object because pi-ai types `Model.input`
     // mutable. The schema's explicit default covers an absent key, so an empty
     // list here is always one someone typed — and unlike an entry's, nothing
@@ -447,6 +489,7 @@ export function resolveProfiles(
       maxRequestImageBytes,
       requestImagePixelBudget,
       requestImageMaxBytes,
+      requestImageMediaTypes,
       retryPolicy: resolveRetryPolicy(retryPolicy, `llm-pi-ai: provider "${provider}" retryPolicy`),
       ...rest.headers === undefined ? {} : { headers: { ...rest.headers } },
       ...rest.thinkingBudgets === undefined ? {} : { thinkingBudgets: { ...rest.thinkingBudgets } },

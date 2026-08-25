@@ -7,6 +7,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { CompressionLimiter } from '../src/compression-limiter.ts'
 import LocalAttachmentStore, { requestImageDimensions } from '../src/index.ts'
 
+/** Every encoding the request-image encoder can produce. */
+const ALL_MEDIA_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const
+
+
 const homes: string[] = []
 
 async function store(): Promise<LocalAttachmentStore> {
@@ -32,6 +36,38 @@ async function complexOpaqueAlphaImage(width: number, height: number): Promise<U
       pixels[offset + channel] = state & 0xff
     }
     pixels[offset + 3] = 255
+  }
+  return new Uint8Array(await sharp(pixels, {
+    raw: { width, height, channels: 4 },
+  }).png().toBuffer())
+}
+
+/** A noisy three-channel source, so the smallest-first ladder reaches JPEG. */
+async function complexOpaqueImage(width: number, height: number): Promise<Uint8Array> {
+  const pixels = new Uint8Array(width * height * 3)
+  let state = 0x2545f491
+  for (let index = 0; index < pixels.length; index += 1) {
+    state ^= state << 13
+    state ^= state >>> 17
+    state ^= state << 5
+    pixels[index] = state & 0xff
+  }
+  return new Uint8Array(await sharp(pixels, {
+    raw: { width, height, channels: 3 },
+  }).png().toBuffer())
+}
+
+/** A noisy translucent source, so the smallest-first ladder reaches WebP rather than PNG. */
+async function complexTranslucentImage(width: number, height: number): Promise<Uint8Array> {
+  const pixels = new Uint8Array(width * height * 4)
+  let state = 0x9e3779b9
+  for (let offset = 0; offset < pixels.length; offset += 4) {
+    for (let channel = 0; channel < 4; channel += 1) {
+      state ^= state << 13
+      state ^= state >>> 17
+      state ^= state << 5
+      pixels[offset + channel] = state & 0xff
+    }
   }
   return new Uint8Array(await sharp(pixels, {
     raw: { width, height, channels: 4 },
@@ -76,7 +112,7 @@ describe('local request-image cache', () => {
     const first = await attachments.saveImage({ data: await image(8, 4), mediaType: 'image/png' })
     const second = await attachments.saveImage({ data: await image(4, 8), mediaType: 'image/png' })
     const firstStored = await attachments.readImage(first)
-    const policy = { maxPixels: 1_000, maxBytes: 1024 * 1024 }
+    const policy = { maxPixels: 1_000, maxBytes: 1024 * 1024, mediaTypes: ALL_MEDIA_TYPES }
 
     const request = await attachments.readImageRequest(first, policy)
     const batch = await Promise.all([first, second].map(
@@ -91,9 +127,9 @@ describe('local request-image cache', () => {
     const attachments = await store()
     const attachment = await attachments.saveImage({ data: await image(8, 4), mediaType: 'image/png' })
 
-    await expect(attachments.readImageRequest(attachment, { maxPixels: 0, maxBytes: 100 }))
+    await expect(attachments.readImageRequest(attachment, { maxPixels: 0, maxBytes: 100, mediaTypes: ALL_MEDIA_TYPES }))
       .rejects.toThrow('Image request maxPixels must be a positive integer')
-    await expect(attachments.readImageRequest(attachment, { maxPixels: 100, maxBytes: 0 }))
+    await expect(attachments.readImageRequest(attachment, { maxPixels: 100, maxBytes: 0, mediaTypes: ALL_MEDIA_TYPES }))
       .rejects.toThrow('Image request maxBytes must be a positive integer')
   })
 
@@ -101,14 +137,14 @@ describe('local request-image cache', () => {
     const attachments = await store()
     const attachment = await attachments.saveImage({ data: await image(1, 1), mediaType: 'image/png' })
 
-    await expect(attachments.readImageRequest(attachment, { maxPixels: 1, maxBytes: 1 }))
+    await expect(attachments.readImageRequest(attachment, { maxPixels: 1, maxBytes: 1, mediaTypes: ALL_MEDIA_TYPES }))
       .rejects.toMatchObject({ code: 'IMAGE_TOO_LARGE' })
   })
 
   it('regenerates invalid, oversized, incompatible, or mismatched cached variants', async () => {
     const attachments = await store()
     const attachment = await attachments.saveImage({ data: await image(64, 32), mediaType: 'image/png' })
-    const policy = { maxPixels: 16 * 16, maxBytes: 4_096 }
+    const policy = { maxPixels: 16 * 16, maxBytes: 4_096, mediaTypes: ALL_MEDIA_TYPES }
     const initial = await attachments.readImageRequest(attachment, policy)
     const hash = String(initial.variantId).slice('sha256:'.length)
     const path = join(attachments.root, 'request-images', hash.slice(0, 2), hash)
@@ -157,10 +193,14 @@ describe('local request-image cache', () => {
       data: await image(2048, 1024), mediaType: 'image/png', name: 'wide.png',
     })
 
-    const squareRequest = await attachments.readImageRequest(square, { maxPixels: 640_000, maxBytes: 1024 * 1024 })
-    const wideRequest = await attachments.readImageRequest(wide, { maxPixels: 640_000, maxBytes: 1024 * 1024 })
-    const repeated = await attachments.readImageRequest(wide, { maxPixels: 640_000, maxBytes: 1024 * 1024 })
-    const low = await attachments.readImageRequest(wide, { maxPixels: 512 * 512, maxBytes: 1024 * 1024 })
+    const squareRequest = await attachments.readImageRequest(square, {
+      maxPixels: 640_000,
+      maxBytes: 1024 * 1024,
+      mediaTypes: ALL_MEDIA_TYPES,
+    })
+    const wideRequest = await attachments.readImageRequest(wide, { maxPixels: 640_000, maxBytes: 1024 * 1024, mediaTypes: ALL_MEDIA_TYPES })
+    const repeated = await attachments.readImageRequest(wide, { maxPixels: 640_000, maxBytes: 1024 * 1024, mediaTypes: ALL_MEDIA_TYPES })
+    const low = await attachments.readImageRequest(wide, { maxPixels: 512 * 512, maxBytes: 1024 * 1024, mediaTypes: ALL_MEDIA_TYPES })
 
     expect(squareRequest).toMatchObject({ width: 800, height: 800 })
     expect(wideRequest).toMatchObject({ width: 1130, height: 565 })
@@ -200,8 +240,12 @@ describe('local request-image cache', () => {
     const photo = await attachments.saveImage({ data: photoSource, mediaType: 'image/png' })
     const alpha = await attachments.saveImage({ data: alphaSource, mediaType: 'image/png' })
 
-    const photoRequest = await attachments.readImageRequest(photo, { maxPixels: 128 * 128, maxBytes: 1024 * 1024 })
-    const alphaRequest = await attachments.readImageRequest(alpha, { maxPixels: 128 * 128, maxBytes: 4_096 })
+    const photoRequest = await attachments.readImageRequest(photo, {
+      maxPixels: 128 * 128,
+      maxBytes: 1024 * 1024,
+      mediaTypes: ALL_MEDIA_TYPES,
+    })
+    const alphaRequest = await attachments.readImageRequest(alpha, { maxPixels: 128 * 128, maxBytes: 4_096, mediaTypes: ALL_MEDIA_TYPES })
 
     expect(photoRequest.mediaType).toBe('image/jpeg')
     expect(alphaRequest.bytes).toBeLessThanOrEqual(4_096)
@@ -216,7 +260,11 @@ describe('local request-image cache', () => {
     }).toColourspace('rgb16').png().toBuffer())
     const attachment = await attachments.saveImage({ data: source, mediaType: 'image/png' })
 
-    const request = await attachments.readImageRequest(attachment, { maxPixels: 16 * 16, maxBytes: 1024 * 1024 })
+    const request = await attachments.readImageRequest(attachment, {
+      maxPixels: 16 * 16,
+      maxBytes: 1024 * 1024,
+      mediaTypes: ALL_MEDIA_TYPES,
+    })
 
     expect(request.bytes).toBeLessThanOrEqual(1024 * 1024)
     expect(request.width * request.height).toBeLessThanOrEqual(16 * 16)
@@ -230,10 +278,98 @@ describe('local request-image cache', () => {
     const source = await complexOpaqueAlphaImage(64, 32)
     const attachment = await attachments.saveImage({ data: source, mediaType: 'image/png' })
 
-    const request = await attachments.readImageRequest(attachment, { maxPixels: 16 * 16, maxBytes: 1024 * 1024 })
+    const request = await attachments.readImageRequest(attachment, {
+      maxPixels: 16 * 16,
+      maxBytes: 1024 * 1024,
+      mediaTypes: ALL_MEDIA_TYPES,
+    })
 
     expect(request.mediaType).toBe('image/webp')
     await expect(sharp(request.data).metadata()).resolves.toMatchObject({ hasAlpha: false })
+  })
+
+  it('re-encodes a transparent source a route cannot decode into one it can', async () => {
+    const attachments = await store()
+    const source = await complexTranslucentImage(176, 225)
+    const attachment = await attachments.saveImage({ data: source, mediaType: 'image/png' })
+    // Below the stored bytes, so the encoding ladder runs instead of passing through.
+    const budgets = { maxPixels: 640_000, maxBytes: 32 * 1024 }
+
+    const anyType = await attachments.readImageRequest(attachment, {
+      ...budgets,
+      mediaTypes: ALL_MEDIA_TYPES,
+    })
+    const decodableOnly = await attachments.readImageRequest(attachment, {
+      ...budgets,
+      mediaTypes: ['image/png', 'image/jpeg'],
+    })
+
+    expect(anyType.mediaType).toBe('image/webp')
+    expect(decodableOnly.mediaType).toBe('image/png')
+    expect(decodableOnly.variantId).not.toBe(anyType.variantId)
+    await expect(sharp(decodableOnly.data).metadata()).resolves.toMatchObject({ hasAlpha: true })
+  })
+
+  it('re-encodes an already-fitting stored version a route cannot decode', async () => {
+    const attachments = await store()
+    const source = new Uint8Array(await sharp({
+      create: { width: 16, height: 16, channels: 4, background: { r: 9, g: 9, b: 9, alpha: 0.5 } },
+    }).webp({ quality: 85 }).toBuffer())
+    const attachment = await attachments.saveImage({ data: source, mediaType: 'image/webp' })
+    const budgets = { maxPixels: 640_000, maxBytes: 1024 * 1024 }
+
+    const passthrough = await attachments.readImageRequest(attachment, {
+      ...budgets,
+      mediaTypes: ALL_MEDIA_TYPES,
+    })
+    const reencoded = await attachments.readImageRequest(attachment, {
+      ...budgets,
+      mediaTypes: ['image/png', 'image/jpeg'],
+    })
+
+    expect(passthrough.mediaType).toBe('image/webp')
+    expect(reencoded.mediaType).toBe('image/png')
+    expect(reencoded.width).toBe(16)
+    expect(reencoded.height).toBe(16)
+  })
+
+  it('falls back to an accepted encoding when an opaque source loses its preferred one', async () => {
+    const attachments = await store()
+    const source = await complexOpaqueImage(176, 225)
+    const attachment = await attachments.saveImage({ data: source, mediaType: 'image/png' })
+    const budgets = { maxPixels: 640_000, maxBytes: 32 * 1024 }
+
+    const anyType = await attachments.readImageRequest(attachment, {
+      ...budgets,
+      mediaTypes: ALL_MEDIA_TYPES,
+    })
+    const webpOnly = await attachments.readImageRequest(attachment, {
+      ...budgets,
+      mediaTypes: ['image/webp'],
+    })
+
+    expect(anyType.mediaType).toBe('image/jpeg')
+    expect(webpOnly.mediaType).toBe('image/webp')
+  })
+
+  it('refuses a route whose accepted encodings cannot carry the source', async () => {
+    const attachments = await store()
+    const source = new Uint8Array(await sharp({
+      create: { width: 16, height: 16, channels: 4, background: { r: 9, g: 9, b: 9, alpha: 0.5 } },
+    }).png().toBuffer())
+    const attachment = await attachments.saveImage({ data: source, mediaType: 'image/png' })
+
+    await expect(attachments.readImageRequest(attachment, {
+      maxPixels: 8 * 8,
+      maxBytes: 1024 * 1024,
+      mediaTypes: ['image/jpeg'],
+    })).rejects.toThrow('A transparent image cannot be encoded as any of the media types this route accepts (image/jpeg).')
+
+    await expect(attachments.readImageRequest(attachment, {
+      maxPixels: 8 * 8,
+      maxBytes: 1024 * 1024,
+      mediaTypes: ['image/gif'],
+    })).rejects.toThrow('Image request mediaTypes must accept at least one of image/png, image/jpeg, image/webp.')
   })
 
   it('keeps a complex 640,000-pixel request version below 1 MiB', async () => {
@@ -252,7 +388,11 @@ describe('local request-image cache', () => {
     }).png().toBuffer())
     const attachment = await attachments.saveImage({ data: source, mediaType: 'image/png' })
 
-    const request = await attachments.readImageRequest(attachment, { maxPixels: 640_000, maxBytes: 1024 * 1024 })
+    const request = await attachments.readImageRequest(attachment, {
+      maxPixels: 640_000,
+      maxBytes: 1024 * 1024,
+      mediaTypes: ALL_MEDIA_TYPES,
+    })
 
     expect(request).toMatchObject({ width: 800, height: 800 })
     expect(request.bytes).toBeLessThanOrEqual(1024 * 1024)
@@ -265,7 +405,7 @@ describe('local request-image cache', () => {
     })
     const run = vi.spyOn(CompressionLimiter.prototype, 'run')
     const controller = new AbortController()
-    const policy = { maxPixels: 640_000, maxBytes: 1024 * 1024 }
+    const policy = { maxPixels: 640_000, maxBytes: 1024 * 1024, mediaTypes: ALL_MEDIA_TYPES }
 
     const cancelled = attachments.readImageRequest(attachment, policy, controller.signal)
     const completed = attachments.readImageRequest(attachment, policy)
@@ -295,7 +435,7 @@ describe('local request-image cache', () => {
     const controller = new AbortController()
     const request = attachments.readImageRequest(
       attachment,
-      { maxPixels: 640_000, maxBytes: 1024 * 1024 },
+      { maxPixels: 640_000, maxBytes: 1024 * 1024, mediaTypes: ALL_MEDIA_TYPES },
       controller.signal,
     )
     await vi.waitFor(() => {
@@ -328,7 +468,7 @@ describe('local request-image cache', () => {
       return actualRead(ref, signal)
     })
     const controller = new AbortController()
-    const policy = { maxPixels: 640_000, maxBytes: 1024 * 1024 }
+    const policy = { maxPixels: 640_000, maxBytes: 1024 * 1024, mediaTypes: ALL_MEDIA_TYPES }
     const cancelled = attachments.readImageRequest(attachment, policy, controller.signal)
     await vi.waitFor(() => {
       expect(calls).toBe(1)
