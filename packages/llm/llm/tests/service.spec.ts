@@ -110,6 +110,19 @@ describe('LlmRuntime', () => {
     expect(isContextWindowExceededError('input exceeds the model context window limit')).toBe(true)
   })
 
+  it('recognizes the passive llama.cpp/LM Studio context-size wording', () => {
+    expect(isContextWindowExceededError(
+      'Engine protocol predict stream returned an error: {"code":500,"message":"Context size has been exceeded.","type":"server_error"}',
+    )).toBe(true)
+    expect(isContextWindowExceededError('the context window was exceeded')).toBe(true)
+    expect(isContextWindowExceededError('context size exceeded')).toBe(true)
+  })
+
+  it('does not mistake context-size validation wording for overflow', () => {
+    expect(isContextWindowExceededError('context size must be positive')).toBe(false)
+    expect(isContextWindowExceededError('context size has been reduced to 4096')).toBe(false)
+  })
+
   it('does not mistake unrelated input validation for context-window overflow', () => {
     expect(isContextWindowExceededError('invalid request: malformed tool arguments')).toBe(false)
     expect(isContextWindowExceededError('invalid input: temperature exceeds maximum allowed value')).toBe(false)

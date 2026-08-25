@@ -21,7 +21,7 @@ import type { Message, UserMessage } from '@deepseek-ai/dsh-llm'
 import type { TokenMeasurement, TokenMeter } from '@deepseek-ai/dsh-token-meter'
 import type { Session, SessionEvent } from '@deepseek-ai/dsh-session'
 import type { Agent } from '@deepseek-ai/dsh-agent'
-import { frameSummary } from './summarizer.ts'
+import { compactionInstructionMessage, frameSummary } from './summarizer.ts'
 import type { SummarizationInput, SummaryResult } from './summarizer.ts'
 
 interface RegionDependencies {
@@ -85,6 +85,40 @@ type StabilityCheck = (
 interface TransactionFailure {
   readonly error: unknown
   readonly stage: 'summary' | 'commit'
+}
+
+/**
+ * Retained-tail budget that keeps an overflow summarization call inside the
+ * context window its own conversation route just exceeded.
+ *
+ * That call replays the shadowed region behind the conversation's system prompt
+ * and tools, appends the compaction instruction, and reserves `maxTokens` for
+ * its output, so those four shares divide one window. Retaining
+ * `surfaceTokens - (contextWindow - maxTokens - envelope - instruction)` tokens
+ * of recent surface bounds the replayed region to what is left. `envelope` is
+ * the measured difference between request pressure and surface tokens, which
+ * prices the same system prompt and tools the replay reuses.
+ *
+ * @param meter - meter pricing the compaction instruction message.
+ * @param measurement - current surface and request-pressure snapshot.
+ * @param contextWindow - the routed model's advertised context window.
+ * @param maxTokens - generation cap reserved for the summary itself.
+ * @returns recent surface tokens to retain verbatim, or `null` when the cap and
+ *   envelope already exhaust the window and no replay size is provably safe.
+ */
+export function overflowRetainTokens(
+  meter: TokenMeter,
+  measurement: TokenMeasurement,
+  contextWindow: number,
+  maxTokens: number,
+): number | null {
+  const envelopeTokens = Math.max(0, measurement.totalTokens - measurement.surfaceTokens)
+  const replayBudget = contextWindow
+    - maxTokens
+    - envelopeTokens
+    - meter.estimateMessage(compactionInstructionMessage())
+  if (replayBudget <= 0) return null
+  return Math.max(0, measurement.surfaceTokens - replayBudget)
 }
 
 /**

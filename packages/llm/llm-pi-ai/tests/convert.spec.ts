@@ -853,6 +853,13 @@ describe('mapStopReason / mapUsage', () => {
     }))).toMatchObject({ kind: 'error', failure: { code: 'RATE_LIMIT' } })
   })
 
+  it('classifies an LM Studio context-size overflow as overflow, not its HTTP 500 envelope', () => {
+    expect(mapStopReason(assistant({
+      stopReason: 'error',
+      errorMessage: 'Engine protocol predict stream returned an error: {"code":500,"message":"Context size has been exceeded.","type":"server_error"}',
+    }))).toMatchObject({ kind: 'error', failure: { code: CONTEXT_WINDOW_EXCEEDED_CODE } })
+  })
+
   it('uses the resolved context window for silent and length-stop overflows', () => {
     // Non-empty content keeps the no-window branch on the successful stop path
     // (an empty stop is EMPTY_RESPONSE, covered above); overflow wins over both.
