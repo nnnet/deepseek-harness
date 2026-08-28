@@ -1,0 +1,35 @@
+# Оверлей `--patch` для профиля `bench`: рычаг C6 плана — короткая персона
+# под слабую модель.
+#
+# ЦЕЛЬ ID. Патчит `id: system-prompt` (`config.persona`), НЕ `id: persona`.
+# `id: persona` живёт только внутри файлов агентных пресетов
+# (apps/cli/config/agent-presets/*/agent.cordis.yml) — bench/headless их не
+# монтирует вообще (см. bench/overlays/rlm-mode.yml). Модель-видимый текст
+# персоны в headless/bench — строка `system-prompt` из
+# packages/bundle/headless/cordis.patch.yml. Патч config ЗАМЕЩАЕТ config
+# строки целиком, поэтому базовый текст ниже повторён дословно, не только
+# добавлен.
+#
+# ОБОСНОВАНИЕ ПРАВИЛ — разбор реальных tool_err из C1 (bench/ledger.md,
+# 5×local-fast: tool_err 1/0/1/2/0; bench/FINDINGS.md). Три живые ошибки
+# извлечены из session.jsonl.zstd — ни одна не про недостающий инструмент
+# (гашение C1 тут ни при чём), все три — обычные для этой модели баги в
+# Python-коде, который она сама пишет в одну dashr-ячейку (run_code):
+#   1. unterminated string literal — незакрытая строка в сгенерированном коде
+#   2. TypeError: '>' not supported between 'int' and 'str' — не тот тип
+#   3. NameError: name 'true' is not defined — JSON/JS `true` вместо Python
+#      `True` (та же путаница возможна и для `false`/`null`)
+# Правила ниже целятся именно в эти три класса и в C6-формулировку плана
+# («одна ячейка — один шаг, обязательный print, запрет на многофайловые
+# правки»), не в общее «пиши код лучше».
+
+- id: system-prompt
+  config:
+    persona: >-
+      You are a coding agent powered by the {{model}} model. Your working
+      directory is {{cwd}}.
+
+      Work in small steps: each Python cell does exactly one step and ends
+      with a print() of its result before you decide the next step. Never
+      edit more than one file per cell. Use real Python syntax — True,
+      False, None — never the JSON/JavaScript spellings true, false, null.

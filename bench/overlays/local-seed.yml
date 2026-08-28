@@ -1,0 +1,63 @@
+# Оверлей `--patch` для профиля `bench`: рычаг C5 плана
+# .claude/plans/2026-08-27T20-36__dsh-local-qwen38-optimization.md — дробление
+# единицы работы через `ouroboros_auto`.
+#
+# Складывается ПОВЕРХ bench/overlays/rlm-mode.yml + bench/overlays/local-fast.yml
+# (третий `--patch` в run.sh EXTRA_PATCH_ARGS). НЕ включает persona.yml (C6) —
+# C5 сравнивается с C1 (`local-fast`), не с C6, чтобы новая переменная
+# (декомпозиция) не путалась с уже принятой (текст персоны). needs графа: [C1].
+#
+# ГИПОТЕЗА УЗЛА. Разобранные в C1 tool_err — обычные `run_code`-баги (незакрытая
+# строка, TypeError, JS-булевы), но плановая заметка C5 держит альтернативную
+# гипотезу: часть отказов может быть следствием размера программы за один заход
+# — слишком много логики в одной ячейке. `ouroboros_auto` дробит задачу на
+# AC-шаги; если гипотеза верна, каждый шаг короче и проще, tool_err падает без
+# явного текстового требования (в отличие от C6, который просит короткие шаги
+# словами в персоне, но полагается на послушание модели).
+#
+# ЦЕНА ИЗВЕСТНА ЗАРАНЕЕ. Строка ouroboros добавляет ~15 847 токенов заглушек
+# инструментов в системный промпт КАЖДОГО запроса (замер сессии 1db0ee02,
+# WS_04/rlm-mode: 136 988 символов промпта, 63 390 из них — 36 заглушек
+# ouroboros, 46%). Именно поэтому строка не входит в `local-fast`/умолчание
+# (см. `settings.yaml`: `agent-presets.default: rlm-mode`, не `rlm-ouroboros`) —
+# рычаг проверяется отдельным оверлеем, а не постоянным включением.
+#
+# ЗАДАЧА НЕ МЕНЯЕТСЯ. `bench/task.md` подаётся дословно, как во всех прежних
+# рычагах — используется ли `ouroboros_auto` вообще, решает сама модель по
+# наличию инструмента в каталоге. Если не воспользуется — это тоже реальный
+# результат (инструмент добавил стоимость без эффекта), не повод переписывать
+# промпт под инструмент.
+#
+# КОНФИГ СКОПИРОВАН ДОСЛОВНО из уже проверенного пресета
+# ~/.dsh/.agent-presets/rlm-ouroboros/agent.cordis.yml (установлен и
+# верифицирован в прошлом заходе). Пин на git-коммит — фиксация версии, с
+# которой снят замер токенов; snapshot npm-пакета с PyPI (0.51.15) ещё не знает
+# бэкенд `host`. serverName должен быть уникален среди ЖИВЫХ экземпляров
+# mcp-client в композиции — bench не монтирует rlm-ouroboros пресет, коллизии
+# нет.
+- insert:
+    - id: mcp-ouroboros
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: ouroboros
+        transport: stdio
+        command: uvx
+        args:
+          - '--from'
+          - 'ouroboros-ai[mcp] @ git+https://github.com/Q00/ouroboros@4c7a28c4279dcb7b47dbb560b27d80eab26e5718'
+          - '--with'
+          - mcp==2.0.0
+          - '--with'
+          - litellm
+          - ouroboros
+          - mcp
+          - serve
+        env:
+          OUROBOROS_LLM_BACKEND: !!js process.env.OUROBOROS_LLM_BACKEND ?? ''
+          OUROBOROS_AGENT_RUNTIME: !!js process.env.OUROBOROS_AGENT_RUNTIME || 'host'
+          OUROBOROS_DSH_CONFIG_PATH: !!js process.env.OUROBOROS_DSH_CONFIG_PATH ?? ''
+          OUROBOROS_DSH_CLI_PATH: !!js process.env.OUROBOROS_DSH_CLI_PATH ?? ''
+          ANTHROPIC_API_KEY: !!js process.env.ANTHROPIC_API_KEY ?? ''
+          DEEPSEEK_API_KEY: !!js process.env.DEEPSEEK_API_KEY ?? ''
+        toolCallTimeoutMs: 1800000
+        failOnStartupError: false

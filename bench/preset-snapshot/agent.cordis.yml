@@ -1,0 +1,96 @@
+# The `local-fast` agent preset: same architecture as `rlm-mode` (include-
+# based stacking of the harness's own `standard` composition + one
+# `dashr-kernel` group — see rlm-mode/agent.cordis.yml for the full mechanism
+# writeup), tuned for a locally-hosted small model instead of a frontier one.
+#
+# Delta from `rlm-mode`, both measured on real `dsh --profile bench` runs
+# against the reference task (deepseek-harness repo: bench/task.md), see
+# bench/ledger.md and bench/FINDINGS.md, plan node
+# .claude/plans/2026-08-27T20-36__dsh-local-qwen38-optimization.md:
+#
+# - C1 `lever-tool-surface`: disables 8 LLM-visible `tool-*` rows
+#   (delegation, workflow, goal, web, skill) unused by this deployment's
+#   tasks. Their JSON Schema is what bloats the system prompt on every
+#   request; the background services they'd need stay mounted (e.g.
+#   `tool-ralph`'s `subagentProvider: spawn` still resolves against
+#   `subagent-spawn-in-process`). Verified over 5 real runs: compactions per
+#   run dropped from a baseline mean of 2.33 to 0.00, wall time -37%,
+#   gate 5/5.
+# - C6 `lever-persona`: the persona text below adds four short rules (one
+#   step per Python cell, print() before deciding the next step, one file
+#   per cell, real Python True/False/None) targeting the three tool_err
+#   classes actually observed in C1's session logs (unterminated string,
+#   wrong-type comparison, JSON/JS boolean literals). Verified over 5 real
+#   runs stacked on the C1 tool surface: tool_err mean -75% (0.80 -> 0.20).
+#
+# Rejected, kept OUT of this preset — do not re-add without a new dated
+# result in bench/FINDINGS.md: Reasoning Budget below 1024 in LM Studio (C2,
+# worse on every measured metric over 5 real runs), `mcp-ouroboros` task
+# decomposition (C5, +15847 token system-prompt floor, zero real tool calls
+# across 5 runs, gate 5/5 -> 3/5). Compaction threshold unchanged from
+# `rlm-mode` (C3): 0.7/6144 already produces zero compactions on this
+# workload once C1's tool surface is applied — no retune needed.
+
+- name: '@deepseek-ai/cordis-plugin-include'
+  config:
+    # LITERAL path, baked in the same way as `rlm-mode`'s own include: the
+    # standard composition lives inside the installed harness, whose install
+    # location is machine-specific. Group rows (this include row is an
+    # EntryGroup) skip loader interpolation, so it cannot be a `!!js` expression.
+    path: /mnt/82A23910A2390A65/Trade/EducationAndHack/LLM/Platforms/deepseek-harness/apps/cli/lib/../config/agent-presets/standard/agent.cordis.yml
+    patches:
+      - id: persona
+        config:
+          text: >-
+            You are a DASHR agent powered by the {{model}} model. Your
+            working directory is {{cwd}}.
+
+
+            Work in small steps: each Python cell does exactly one step and
+            ends with a print() of its result before you decide the next
+            step. Never edit more than one file per cell. Use real Python
+            syntax — True, False, None — never the JSON/JavaScript spellings
+            true, false, null.
+
+      - id: compaction-basic
+        config:
+          thresholdRatio: 0.7
+          retainTokens: 6144
+          maxTokens: 2048
+
+      - id: tool-subagent-control
+        disabled: true
+
+      - id: tool-subagent-list-agents
+        disabled: true
+
+      - id: tool-subagent
+        disabled: true
+
+      - id: tool-subagent-fork
+        disabled: true
+
+      - id: tool-workflow
+        disabled: true
+
+      - id: tool-goal
+        disabled: true
+
+      - id: tool-web
+        disabled: true
+
+      - id: tool-skill
+        disabled: true
+
+# Group must carry a realm: `dsh-rlm-mode` publishes the `rlmRuntime`
+# service, and without isolation it would leak into the process root realm.
+- id: dashr-kernel
+  name: cordis:group
+  group: true
+  isolate:
+    rlmRuntime: true
+  config:
+    - id: dsh-rlm-mode
+      name: dsh-rlm-mode
+      config:
+        python: /home/uadmin/.dsh/dashr-kernel-venv/bin/python

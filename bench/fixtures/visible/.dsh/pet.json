@@ -1,0 +1,10 @@
+{
+  "petId": "gate-otter",
+  "names": {
+    "gate-otter": "Выдра-эталон"
+  },
+  "display": {
+    "visible": true,
+    "size": 160
+  }
+}

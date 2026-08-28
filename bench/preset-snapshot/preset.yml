@@ -1,0 +1,5 @@
+# Display metadata for the Local Fast preset. The id is the directory name
+# (`local-fast`) and the trust comes from the root it is discovered under —
+# neither is writable here; this file carries display text ONLY.
+name: Local Fast
+description: 'RLM mode tuned for a locally-hosted small model (qwen3.8-27b Q4_K_M via LM Studio): reduced tool surface and a small-steps persona. Measured deltas against rlm-mode: bench/FINDINGS.md, bench/run-params.md in the deepseek-harness repo.'

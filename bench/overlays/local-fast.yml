@@ -1,0 +1,47 @@
+# Оверлей `--patch` для профиля `bench`: рычаг C1 плана
+# .claude/plans/2026-08-27T20-36__dsh-local-qwen38-optimization.md — минимальная
+# поверхность инструментов.
+#
+# Складывается ПОВЕРХ bench/overlays/rlm-mode.yml (второй `--patch` в run.sh
+# EXTRA_PATCH_ARGS), не копирует его содержимое.
+#
+# ЧТО ГАСИТСЯ И ПОЧЕМУ. Отключены только LLM-видимые `tool-*` строки — именно
+# они регистрируют JSON Schema инструмента через `dsh-tools`, и эта схема
+# ложится в системный промпт на каждый запрос. Группы: делегирование
+# (subagent/subagent_fork/list_agents/send_message/report), workflow, goal,
+# web-поиск, каталог skill — ни одна не нужна для написания одного
+# самодостаточного плагина.
+#
+# Фоновые сервисы (subagent-spawn-in-process, subagent-fork-in-process, goal,
+# goal-round-driver, web, web-search-deepseek, skill, skill-filesystem)
+# намеренно ОСТАЮТСЯ смонтированы: они не сами по себе не регистрируют
+# инструмент и не платят токенами, а `tool-ralph` резолвит
+# `subagentProvider: spawn` по имени провайдера у `subagent-spawn-in-process`
+# — если погасить и его, `tool-ralph` останется без бэкенда.
+
+- id: tool-subagent-control
+  disabled: true
+
+- id: tool-subagent-list-agents
+  disabled: true
+
+- id: tool-subagent
+  disabled: true
+
+- id: tool-subagent-fork
+  disabled: true
+
+- id: tool-subagent-report
+  disabled: true
+
+- id: tool-workflow
+  disabled: true
+
+- id: tool-goal
+  disabled: true
+
+- id: tool-web
+  disabled: true
+
+- id: tool-skill
+  disabled: true
