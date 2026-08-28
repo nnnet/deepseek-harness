@@ -1,0 +1,87 @@
+bench/preset-snapshot/agent.cordis.yml
+  s_6661b6957ae1f3::t_f4612b715a3855 1-96
+docs/architecture.i18n.yaml
+  s_6661b6957ae1f3::t_f8390819a3ec7d 6
+bench/preset-snapshot/preset.yml
+  s_6661b6957ae1f3::t_f4612b715a3855 1-5
+docs/architecture.zh.md
+  s_6661b6957ae1f3::t_f8390819a3ec7d 15-16
+.agents/notes/implemented/feature/2026-08-29-local-fast-preset.i18n.yaml
+  s_6661b6957ae1f3::t_59517f550d76a2 1-6
+bench/broken/dead-tool/package.json
+  s_6661b6957ae1f3::t_a8accbd4e57177 1-7
+bench/broken/mixed-export/package.json
+  s_6661b6957ae1f3::t_18b56434ea3dd7 1-7
+bench/broken/no-apply/package.json
+  s_6661b6957ae1f3::t_0def1826e62bc0 1-7
+bench/broken/no-load/package.json
+  s_6661b6957ae1f3::t_6cef9de34ea559 1-7
+docs/cookbook/regression-testing-local-model-configs.i18n.yaml
+  s_6661b6957ae1f3::t_e26089e8eeec18 1-6
+.agents/notes/implemented/feature/2026-08-29-local-fast-preset.md
+  s_6661b6957ae1f3::t_6f6b7516bf6f55 1-42
+.agents/notes/implemented/feature/2026-08-29-local-fast-preset.zh.md
+  s_6661b6957ae1f3::t_33371ab866b5a1 1-42
+.claude/HANDOFF.md
+  s_6661b6957ae1f3::t_2985ddd3cfa559 1-144
+.claude/plans/2026-08-27T20-36__dsh-local-qwen38-optimization.md
+  s_6661b6957ae1f3::t_b6c2b3dfca86a2 1-258
+bench/FINDINGS.md
+  s_6661b6957ae1f3::t_55ae033819403f 1-201
+bench/broken/dead-tool/index.js
+  s_6661b6957ae1f3::t_de37b64e1855c5 1-31
+bench/broken/mixed-export/index.js
+  s_6661b6957ae1f3::t_4e522b67ad60f6 1-42
+bench/broken/no-apply/index.js
+  s_6661b6957ae1f3::t_f7095335423be5 1-24
+bench/broken/no-load/index.js
+  s_6661b6957ae1f3::t_0cdac9303afdd4 1-14
+bench/fixtures/hidden/.dsh/pet.json
+  s_6661b6957ae1f3::t_2ed0d9ed1d2afe 1-10
+bench/fixtures/visible/.dsh/pet.json
+  s_6661b6957ae1f3::t_b295cae375a0d3 1-10
+bench/gate.mjs
+  s_6661b6957ae1f3::t_f4403f8ca257d5 1-394
+bench/ledger.md
+  s_6661b6957ae1f3::t_06c3dff887556d 1-25
+bench/metrics.py
+  s_6661b6957ae1f3::t_d3811bafcca1bd 1-115
+bench/overlays/local-fast.yml
+  s_6661b6957ae1f3::t_e051c77b63380e 1-47
+bench/overlays/local-seed.yml
+  s_6661b6957ae1f3::t_525bcb9503b7fe 1-63
+bench/overlays/persona.yml
+  s_6661b6957ae1f3::t_bd09786712bddc 1-35
+bench/overlays/rlm-mode.yml
+  s_6661b6957ae1f3::t_54bfddc5f2d654 1-56
+bench/reference/dsh-pet-lite/index.js
+  s_6661b6957ae1f3::t_6ec07f37eef77e 1-46
+bench/reference/dsh-pet-lite/package.json
+  s_6661b6957ae1f3::t_3386197c057310 1-7
+bench/run-params.md
+  s_6661b6957ae1f3::t_8768ad373ab093 1-56
+bench/run.sh
+  s_6661b6957ae1f3::t_4795e0a681abc8 1-108
+bench/task.md
+  s_6661b6957ae1f3::t_5762ce14a6fab7 1-86
+docs/cookbook/regression-testing-local-model-configs.md
+  s_6661b6957ae1f3::t_3c7462ced28d2d 1-80
+docs/cookbook/regression-testing-local-model-configs.zh.md
+  s_6661b6957ae1f3::t_536c687409c3c1 1-80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "2aa8b2d14abd04491571da057f854bc0c8b8ccb0",
+  "prompts": {},
+  "sessions": {
+    "s_6661b6957ae1f3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "409fac85-8fac-4f85-a2ec-ea905449342b",
+        "model": "claude-opus-5"
+      },
+      "human_author": "nnnet <21066097+nnnet@users.noreply.github.com>"
+    }
+  }
+}
