@@ -1,0 +1,21 @@
+docs/upgrade-journal/0.1.1-to-0.1.2.md
+  s_6661b6957ae1f3::t_0d2b8e50107e39 1-246
+docs/upgrade-journal/disabled-plugins-0.1.2.md
+  s_6661b6957ae1f3::t_b8a3d381e45186 1-229
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "91163484342832dbf129867778b3f865848142c9",
+  "prompts": {},
+  "sessions": {
+    "s_6661b6957ae1f3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "409fac85-8fac-4f85-a2ec-ea905449342b",
+        "model": "OpenRouter/minimax/minimax-m3:free"
+      },
+      "human_author": "nnnet <21066097+nnnet@users.noreply.github.com>"
+    }
+  }
+}
