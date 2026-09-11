@@ -1,0 +1,16 @@
+host-local/docs/dsh-docker.md
+  h_e36c3d654edcfe 1-702
+host-local/docs/ouroboros-mcp.md
+  h_e36c3d654edcfe 1-466
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "75e761c7b4c4968e3115ff9ad914fa732cb26f20",
+  "prompts": {},
+  "humans": {
+    "h_e36c3d654edcfe": {
+      "author": "nnnet <21066097+nnnet@users.noreply.github.com>"
+    }
+  }
+}
