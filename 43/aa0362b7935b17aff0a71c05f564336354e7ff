@@ -1,0 +1,21 @@
+host-local/scripts/dsh-start-web.sh
+  s_12b89074a2af1a::t_ccfe79199ee390 2-4,6-8,10,12-16,18-50,53-55,58-60,67-70,73,79,85-92,96-108,115,125-126,165-262,272,307,312-325,336-337,363-385,387-477,482,488-489,497,499,516-519,523,528,530,534-535,542-543,567,570-571,578,588-592,602-603,608-613,616-623,626-627,632-633,644-645,647
+  s_12b89074a2af1a::t_b5ece7643d21ec 386,568,634-643,648-649
+  s_12b89074a2af1a::t_9a390deee47a0e 273-276,278,280-282,284-285
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "43aa0362b7935b17aff0a71c05f564336354e7ff",
+  "prompts": {},
+  "sessions": {
+    "s_12b89074a2af1a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c7a21356-412f-4367-98bf-59f333dbc7b4",
+        "model": "OpenRouter/thinkingmachines/inkling:free"
+      },
+      "human_author": "nnnet <21066097+nnnet@users.noreply.github.com>"
+    }
+  }
+}
