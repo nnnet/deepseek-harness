@@ -90,6 +90,32 @@ host-local/scripts/dsh-start-web.sh upgrade dsh-v0.1.5-rc.2
 | `DSH_FORK_REMOTE` | `fork` | личный форк |
 | `DSH_RELEASE_TAG_GLOB` | `dsh-v*` | что считать релизом |
 
+## Известная поломка: три workspace указывают в никуда
+
+`~/.dsh/storages/workspace.json` держит абсолютные пути. Три из шести
+записаны как `deepseek-harness/test/...`, а каталог давно живёт на уровень
+ниже — `deepseek-harness/dsh/test/`: репозиторий когда-то был корнем
+проекта, потом переехал в `dsh/` и утащил `test/` с собой. В интерфейсе
+dsh эти workspace числятся несуществующими.
+
+```
+НЕТУ  .../deepseek-harness/test/Workspace_00
+НЕТУ  .../deepseek-harness/test/WS_01
+НЕТУ  .../deepseek-harness/test/WS_02      # такого нет и в dsh/test/
+OK    .../EducationAndHack/Yandex
+OK    .../Platforms/Workspaces/WS_03
+OK    .../Platforms/Workspaces/WS_04
+```
+
+Чинится переносом каталога туда, где его ищет dsh — заодно 67 МБ рабочих
+данных уезжают из git-репозитория, где им не место:
+
+```bash
+mv dsh/test ../test      # из корня deepseek-harness
+```
+
+`WS_02` это не вернёт — его нет ни там, ни там.
+
 ## Чего этот каталог не решает
 
 Переносимость на другой хост. `host-local/` едет вместе с веткой, но
