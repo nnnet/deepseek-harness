@@ -1,0 +1,28 @@
+host-local/docs/release-log.md
+  s_12b89074a2af1a::t_512be21ebeb9c9 1-7
+  s_12b89074a2af1a::t_d7fb95d7a714f6 8-13
+host-local/README.md
+  s_12b89074a2af1a::t_285153b3dfb1eb 1-71
+host-local/state/.gitignore
+  s_12b89074a2af1a::t_c048d711ab594c 1-2
+host-local/scripts/start-web.sh
+  s_12b89074a2af1a::t_a7d5193ca78097 1-104,107-228,237-245
+  s_12b89074a2af1a::t_1d88af14ea0b0b 229-236
+  s_12b89074a2af1a::t_018093c99f85cc 105-106
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "34169291aeb4fa8b7c4f219ef5706ac87b417ba4",
+  "prompts": {},
+  "sessions": {
+    "s_12b89074a2af1a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c7a21356-412f-4367-98bf-59f333dbc7b4",
+        "model": "claude-opus-5"
+      },
+      "human_author": "nnnet <21066097+nnnet@users.noreply.github.com>"
+    }
+  }
+}
