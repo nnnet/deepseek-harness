@@ -8,7 +8,7 @@
 ```
 host-local/
 ├── docs/          документы этого хоста (release-log.md и всё остальное)
-├── scripts/       start-web.sh и прочие локальные запускалки
+├── scripts/       dsh-start-web.sh и прочие локальные запускалки
 └── state/         машинное состояние скриптов, не для чтения глазами
 ```
 
@@ -41,7 +41,7 @@ launcher'а вырезана. Изоляция теперь достигаетс
 
 Апстрим не держит rc-веток: у `origin` есть только `master`. Релизы-кандидаты
 существуют как теги — `dsh-v0.1.5-rc.2`, `dsh-v0.1.5-alpha.1` и так далее.
-Поэтому `start-web.sh` ищет новое среди тегов `dsh-v*`, а не среди веток.
+Поэтому `dsh-start-web.sh` ищет новое среди тегов `dsh-v*`, а не среди веток.
 
 Новизна считается достижимостью, а не сравнением имён: тег, уже влитый в
 ветку, новым не считается, как бы он ни назывался.
@@ -49,11 +49,22 @@ launcher'а вырезана. Изоляция теперь достигаетс
 ## Работа
 
 ```bash
-host-local/scripts/start-web.sh            # fetch + pull + проверка + запуск
-host-local/scripts/start-web.sh check      # только посмотреть, что вышло нового
-host-local/scripts/start-web.sh status     # где мы сейчас
-host-local/scripts/start-web.sh upgrade dsh-v0.1.5-rc.2
+host-local/scripts/dsh-start-web.sh            # fetch + pull + проверка + запуск
+host-local/scripts/dsh-start-web.sh check      # только посмотреть, что вышло нового
+host-local/scripts/dsh-start-web.sh status     # где мы сейчас
+host-local/scripts/dsh-start-web.sh upgrade dsh-v0.1.5-rc.2
 ```
+
+Скрипт разыменовывает собственный путь, поэтому одинаково работает из
+репозитория и через симлинки:
+
+```
+~/.local/bin/dsh-start-web.sh  ->  host-local/scripts/dsh-start-web.sh   (в PATH)
+~/.dsh/dsh-start-web.sh        ->  host-local/scripts/dsh-start-web.sh
+```
+
+Имя намеренно отличается от `~/.dsh/start-web.sh` — это разные скрипты, и
+одинаковые имена в одном каталоге путали бы их.
 
 Переезд никогда не происходит сам. `start` и `check` только сообщают о
 новых релизах и записывают факт появления в `docs/release-log.md`;

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# start-web.sh — локальный запуск dsh web с этого хоста и управляемый
+# dsh-start-web.sh — локальный запуск dsh web с этого хоста и управляемый
 # переезд на новые релизы.
 #
 # Живём всегда в одной ветке (HOST_BRANCH). Релизы апстрима приезжают
@@ -8,10 +8,10 @@
 # host-local/ переживает любой апгрейд.
 #
 # Команды:
-#   start-web.sh              запустить web (по умолчанию)
-#   start-web.sh check        только проверить новые релизы, ничего не менять
-#   start-web.sh upgrade TAG  влить релизный тег в текущую ветку
-#   start-web.sh status       где мы сейчас
+#   dsh-start-web.sh              запустить web (по умолчанию)
+#   dsh-start-web.sh check        только проверить новые релизы, ничего не менять
+#   dsh-start-web.sh upgrade TAG  влить релизный тег в текущую ветку
+#   dsh-start-web.sh status       где мы сейчас
 #
 set -euo pipefail
 
@@ -33,7 +33,11 @@ RELEASE_TAG_GLOB="${DSH_RELEASE_TAG_GLOB:-dsh-v*}"
 WEB_PORT="${DSH_WEB_PORT:-3000}"
 
 # ── пути ──────────────────────────────────────────────────────────────
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# readlink -f обязателен: скрипт вызывается через симлинки (~/.dsh/ и
+# ~/.local/bin/), и без разыменования $BASH_SOURCE указывал бы на каталог
+# симлинка — то есть на $HOME, а не на репозиторий.
+SELF="$(readlink -f "${BASH_SOURCE[0]}")"
+REPO_ROOT="$(cd "$(dirname "$SELF")/../.." && pwd)"
 HOST_DIR="$REPO_ROOT/host-local"
 STATE_DIR="$HOST_DIR/state"
 CURRENT_RELEASE_FILE="$STATE_DIR/current-release"
@@ -115,7 +119,7 @@ append_release_log() {
   [ -f "$RELEASE_LOG" ] || cat > "$RELEASE_LOG" <<'HEADER'
 # Журнал релизов этого хоста
 
-Пишется скриптом `host-local/scripts/start-web.sh`. Строка «замечен» —
+Пишется скриптом `host-local/scripts/dsh-start-web.sh`. Строка «замечен» —
 релиз появился в апстриме; строка «переезд» — мы на него перешли.
 
 | дата | событие | тег | заметка |
