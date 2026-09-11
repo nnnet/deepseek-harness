@@ -1,0 +1,38 @@
+docs/usage/dsh-deepresearch.md
+  s_6661b6957ae1f3::t_401117f84bfae0 382-497,499-534
+  s_6661b6957ae1f3::t_8fd67f68a15213 1-263,572-598
+  s_6661b6957ae1f3::t_a885011384be47 274-276
+  s_6661b6957ae1f3::t_2009af637d9281 264-273,277-381,498,535-571
+.gitignore
+  s_12b89074a2af1a::t_079ab86b042a66 44-55
+host-local/README.md
+  s_12b89074a2af1a::t_dd5526276591df 93-118
+plans/260905-1830-plugin-upgrade-roadmap/03-launched-on-0.1.2-rc.1.md
+  s_6661b6957ae1f3::t_bca72162a214ad 1-14
+plans/260905-1830-plugin-upgrade-roadmap/04-linxin-disables.md
+  s_6661b6957ae1f3::t_b3a645cc6c04f2 1-70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "4a21f32c04d724983fe071958a210864e003b346",
+  "prompts": {},
+  "sessions": {
+    "s_12b89074a2af1a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c7a21356-412f-4367-98bf-59f333dbc7b4",
+        "model": "claude-opus-5"
+      },
+      "human_author": "nnnet <21066097+nnnet@users.noreply.github.com>"
+    },
+    "s_6661b6957ae1f3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "409fac85-8fac-4f85-a2ec-ea905449342b",
+        "model": "OpenRouter/minimax/minimax-m3:free"
+      },
+      "human_author": "nnnet <21066097+nnnet@users.noreply.github.com>"
+    }
+  }
+}
