@@ -214,33 +214,60 @@ cmd_upgrade() {
     || die "тега '$tag' нет локально — сделай '$0 check'"
 
   assert_host_branch
-  worktree_is_dirty && die "рабочее дерево грязное — закоммить или спрячь перед переездом"
 
-  # Точка возврата: слияние релиза затрагивает тысячи файлов, откат
-  # через reflog возможен, но именованная ветка надёжнее.
-  local safety="backup/${HOST_BRANCH##*/}-$(date +%Y%m%d-%H%M%S)"
-  git branch "$safety"
-  log "точка возврата: $safety"
+  # Слияние уже влитого тега — не ошибка, а обычный повтор: установка
+  # тянет сотни мегабайт и падает от любого сетевого чиха. Тогда переезд
+  # доделывается тем же вызовом, без второго мерджа и второго бэкапа.
+  if git merge-base --is-ancestor "$tag" HEAD 2>/dev/null; then
+    log "$tag уже влит — доделываю установку и сборку"
+  else
+    worktree_is_dirty && die "рабочее дерево грязное — закоммить или спрячь перед переездом"
 
-  log "сливаю $tag в $HOST_BRANCH"
-  if ! git merge --no-edit "$tag"; then
-    warn "конфликты слияния. Разреши их и закоммить, либо откатись:"
-    printf '      git merge --abort && git reset --hard %s\n' "$safety"
+    # Точка возврата: слияние релиза затрагивает тысячи файлов, откат
+    # через reflog возможен, но именованная ветка надёжнее.
+    local safety="backup/${HOST_BRANCH##*/}-$(date +%Y%m%d-%H%M%S)"
+    git branch "$safety"
+    log "точка возврата: $safety"
+
+    log "сливаю $tag в $HOST_BRANCH"
+    if ! git merge --no-edit "$tag"; then
+      warn "конфликты слияния. Разреши их и закоммить, либо откатись:"
+      printf '      git merge --abort && git reset --hard %s\n' "$safety"
+      exit 1
+    fi
+
+    mkdir -p "$STATE_DIR"
+    echo "$tag" > "$CURRENT_RELEASE_FILE"
+    append_release_log "переезд" "$tag" "откат: \`$safety\`"
+
+    # Бухгалтерию коммитим сразу. Иначе скрипт оставляет после себя
+    # изменённый release-log.md и на следующем запуске спотыкается о
+    # собственную запись: «рабочее дерево грязное».
+    git add host-local/docs/release-log.md
+    git commit -q -m "host-local: record upgrade to $tag" || true
+  fi
+
+  # Установка и сборка — не транзакция: сеть отваливается на середине
+  # стомегабайтной закачки. Падение здесь не откатывает мердж, а просит
+  # повторить ту же команду.
+  log "ставлю зависимости"
+  if ! pnpm install; then
+    warn "установка не прошла (часто — сетевой сбой на большой закачке)."
+    printf '      повтори ту же команду: %s upgrade %s\n' "${0##*/}" "$tag"
     exit 1
   fi
 
-  mkdir -p "$STATE_DIR"
-  echo "$tag" > "$CURRENT_RELEASE_FILE"
-  append_release_log "переезд" "$tag" "откат: \`$safety\`"
-
-  log "ставлю зависимости"
-  pnpm install
-
   log "собираю"
-  pnpm run build
+  if ! pnpm run build; then
+    warn "сборка не прошла — смотри вывод выше."
+    printf '      повтор:  %s upgrade %s\n' "${0##*/}" "$tag"
+    printf '      откат:   git reset --hard %s\n' "$(git branch --list 'backup/*' | tail -1 | tr -d ' *')"
+    exit 1
+  fi
 
   log "переехали на $tag. Профиль '$PROFILE' не тронут."
-  printf '      откат при проблемах: git reset --hard %s\n' "$safety"
+  printf '      откат при проблемах: git reset --hard %s\n' \
+    "$(git branch --list 'backup/*' | tail -1 | tr -d ' *')"
 }
 
 cmd_status() {
