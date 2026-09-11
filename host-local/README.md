@@ -174,31 +174,41 @@ dshmarket. Поэтому ставится **шим**: `export *` из наст�
 
 ## «restart to apply», которое не исчезает
 
-Баннер `1 change(s) done — restart DeepSeek Harness to apply` в Plugin
-Market может висеть вечно, сколько ни перезапускай. Это не баг перезапуска,
-а невыполнимое изменение.
+Баннер `1 change(s) done — restart DeepSeek Harness to apply` может висеть
+вечно, сколько ни перезапускай. Это не проблема перезапуска: счётчик
+приходит **с хоста** (`/dsh-market/installed`, поле `activation`), а не из
+памяти браузера, и считает плагины в состоянии `restart`.
 
-`~/.dsh/profiles/web/.dsh-market/state.json` хранил
-`"disabled":["dsh-builtin-browser"]` — голое имя пакета. А в дереве этот
-плагин представлен записями с подпутями:
+Хост выставляет это состояние, когда пакет числится в `bundles` профиля, но
+живой записи в загрузчике у него нет. Предполагается, что рестарт это
+исправит. Для некоторых плагинов — не исправит никогда:
 
+- **`dsh-rlm-mode`** — его `cordis.patch.yml` это буквально `[]`. Так
+  задумано: «intentionally mounts NOTHING on the profile plane», вся
+  функциональность в agent-пресете, а монтирование её ещё и на уровне
+  профиля зарегистрировало бы сервис `rlmRuntime` дважды и сделало бы RLM
+  Mode невыбираемым в Web UI. Живой записи не будет никогда.
+- **`dsh_plugin_ad`** — client-only, `dsh.bundle` у него нет вовсе.
+
+Оба убраны из `bundles` (в `dependencies` оставлены). Пресет
+`~/.dsh/.agent-presets/rlm-mode/` не затронут — RLM Mode выбирается как
+раньше.
+
+Диагностика без догадок — спросить у живого сервера:
+
+```bash
+curl -s -H "Cookie: dsh-token=$TOKEN" http://127.0.0.1:<порт>/dsh-market/installed \
+  | python3 -c "import sys,json; a=json.load(sys.stdin)['activation']; \
+      print([n for n,v in a.items() if v.get('state')=='restart'])"
 ```
-- id: browser            name: dsh-builtin-browser/browser
-- id: browser-electron   name: dsh-builtin-browser/browser-electron
-- id: tool-browser       name: dsh-builtin-browser/tool-browser
-```
 
-Записи с именем ровно `dsh-builtin-browser` нет, поэтому маркет на каждом
-boot писал в свой `log.ndjson` «no loader entry matched», изменение
-оставалось неприменённым, а счётчик — ненулевым.
+Пустой список — применять нечего, баннера быть не должно.
 
-Диагностика: `tail .dsh-market/log.ndjson` — строка `no loader entry
-matched` на каждом старте и есть симптом.
-
-Убрано из `state.json`. Плагин при этом остаётся выключенным: все три его
-записи помечены `disabled: true` в `cordis.patch.yml` профиля, то есть
-желаемое состояние достигнуто другим путём — маркет просто не мог его
-подтвердить.
+Ложный след, на который ушёл целый заход: `.dsh-market/state.json` с
+`disabled:["dsh-builtin-browser"]` и строки `no loader entry matched` в
+`log.ndjson`. Это отдельный мусор (записи в дереве называются
+`dsh-builtin-browser/browser` и подобными подпутями, голого имени нет), но
+к баннеру он отношения не имел.
 
 ## Скрипты обновления моделей
 
