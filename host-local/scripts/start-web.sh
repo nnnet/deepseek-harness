@@ -20,9 +20,10 @@ set -euo pipefail
 # смысл: при апгрейде меняется содержимое, не идентичность.
 HOST_BRANCH="${DSH_HOST_BRANCH:-host/uadmin-raider18}"
 
-# Профиль dsh. Тоже намеренно отвязан от версии: профиль — это 700+ МБ
-# накопленных плагинов, его нельзя пересоздавать на каждый релиз.
-PROFILE="${DSH_HOST_PROFILE:-web-pin-dsh-v0.1.2-rc.1}"
+# Профиль dsh — один на хост и называется просто `web`. Профили вида
+# `web-<ветка>` упразднены: каждый был копией на 700+ МБ, жившей своей
+# жизнью, и правка в одном не была видна другим.
+PROFILE="${DSH_HOST_PROFILE:-web}"
 
 # Откуда берём релизы и как они называются.
 UPSTREAM_REMOTE="${DSH_UPSTREAM_REMOTE:-origin}"
@@ -226,13 +227,23 @@ cmd_start() {
   cmd_pull
   cmd_check || true
 
-  log "dsh --profile $PROFILE --port $WEB_PORT"
-  # Именно '--profile <имя>', а НЕ подкоманда 'dsh web': 'web' — это алиас
-  # для '--profile web', то есть базового профиля. Он бы поднялся пустым,
-  # без единого плагина отсюда.
+  # Сам запуск делегируем в ~/.dsh/start-web.sh, если он есть: там освобождение
+  # порта, ротация логов, обновление списка free-моделей OpenRouter, починка
+  # абсолютных путей в agent-пресетах и рантайм-патчи под 0.1.2-rc.1. Держать
+  # вторую реализацию всего этого — гарантированное расхождение поведения.
+  #
+  # Здесь остаётся только то, чего там нет: слежение за релизами (выше).
   #
   # URL с разовым токеном печатает сам dsh; скрипт его не перехватывает,
   # чтобы токен не оседал в логах.
+  local launcher="$HOME/.dsh/start-web.sh"
+  if [ -x "$launcher" ]; then
+    log "запуск через $launcher (профиль $PROFILE)"
+    exec env DSH_BRANCH="$HOST_BRANCH" "$launcher"
+  fi
+
+  warn "$launcher не найден — запускаю напрямую, без освобождения порта и патчей"
+  log "dsh --profile $PROFILE --port $WEB_PORT"
   exec pnpm exec tsx apps/cli/src/bin.ts --profile "$PROFILE" --port "$WEB_PORT"
 }
 
