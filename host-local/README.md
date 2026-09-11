@@ -172,6 +172,34 @@ dshmarket. Поэтому ставится **шим**: `export *` из наст�
 загружаемых модулей, включая `link:`-плагины вне репозитория. Этот `src`
 отслеживается апстримом, править его нельзя.
 
+## «restart to apply», которое не исчезает
+
+Баннер `1 change(s) done — restart DeepSeek Harness to apply` в Plugin
+Market может висеть вечно, сколько ни перезапускай. Это не баг перезапуска,
+а невыполнимое изменение.
+
+`~/.dsh/profiles/web/.dsh-market/state.json` хранил
+`"disabled":["dsh-builtin-browser"]` — голое имя пакета. А в дереве этот
+плагин представлен записями с подпутями:
+
+```
+- id: browser            name: dsh-builtin-browser/browser
+- id: browser-electron   name: dsh-builtin-browser/browser-electron
+- id: tool-browser       name: dsh-builtin-browser/tool-browser
+```
+
+Записи с именем ровно `dsh-builtin-browser` нет, поэтому маркет на каждом
+boot писал в свой `log.ndjson` «no loader entry matched», изменение
+оставалось неприменённым, а счётчик — ненулевым.
+
+Диагностика: `tail .dsh-market/log.ndjson` — строка `no loader entry
+matched` на каждом старте и есть симптом.
+
+Убрано из `state.json`. Плагин при этом остаётся выключенным: все три его
+записи помечены `disabled: true` в `cordis.patch.yml` профиля, то есть
+желаемое состояние достигнуто другим путём — маркет просто не мог его
+подтвердить.
+
 ## Скрипты обновления моделей
 
 Исходники лежат **только** в `claude-code-router/scripts/`, симлинки —
