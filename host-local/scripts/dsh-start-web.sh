@@ -389,8 +389,57 @@ prepare_profile() {
 
   fix_preset_paths
   patch_llm_callid_alias
+  patch_plugin_ad_settings_api
   install_settings_shim
 }
+
+# dsh_plugin_ad: свободная функция installSettingsSection стала методом.
+#
+# Ни шим в профиле, ни патч сборки этот импорт не перехватывают.
+# Приложение запускается через `tsx/esm`, а tsconfig.base.json:377 маппит
+# `@deepseek-ai/dsh-settings` на `packages/settings/settings/src` — и
+# перенаправление действует на ВСЕ загружаемые модули, включая плагины вне
+# репозитория. Этот `src` — отслеживаемый апстримовый исходник, править его
+# ради своей нужды нельзя.
+#
+# Поэтому чиним со стороны плагина: `lib/` у dsh_plugin_ad не отслеживается
+# даже его собственным git — это артефакт сборки в нашей коллекции.
+#
+# Заглушкой не обходимся: в 0.1.5 функция не исчезла, а переехала в
+# SettingsProvider.installSection с той же семантикой. Старое тело
+# оборачивало вызов в ctx.inject(['settings']) — адаптер делает ровно это,
+# поэтому секция настроек плагина продолжает работать, а не молча пропадает.
+patch_plugin_ad_settings_api() {
+  local lib="$REPO_ROOT/../dsh-plugins-collection/dsh_plugin_ad/lib/index.js"
+  [ -f "$lib" ] || return 0
+  grep -q 'host-local: settings API adapter' "$lib" && return 0
+  grep -q 'installSettingsSection.*from "@deepseek-ai/dsh-settings"' "$lib" || return 0
+
+  log "адаптер settings-API для dsh_plugin_ad"
+  local tmp
+  tmp="$(mktemp)"
+  {
+    echo '// host-local: settings API adapter — installSettingsSection стала'
+    echo '// SettingsProvider.installSection. Дописывается dsh-start-web.sh при'
+    echo '// каждом старте, потому что lib/ пересобирается обновлением плагина.'
+    echo 'function settingsNamespace(value) {'
+    echo '  if (!/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(value)) {'
+    echo '    throw new TypeError(`settings namespace "${value}" is not lowercase-hyphenated`);'
+    echo '  }'
+    echo '  return value;'
+    echo '}'
+    echo 'function installSettingsSection(ctx, ns, schema, entry, hooks) {'
+    echo '  ctx.inject(["settings"], (sctx) => {'
+    echo '    sctx.settings.installSection(ctx, ns, schema, entry, hooks);'
+    echo '  });'
+    echo '}'
+    # Исходный импорт убираем целиком: обе его имени теперь локальные, а
+    # других имён из этого модуля файл не берёт (проверено — импорт один).
+    sed '1{/^import { installSettingsSection, settingsNamespace } from "@deepseek-ai\/dsh-settings";$/d}' "$lib"
+  } > "$tmp"
+  mv "$tmp" "$lib"
+}
+
 
 # Пресеты агентов ссылаются на исходники по АБСОЛЮТНОМУ пути: loader-строки
 # `path:` не проходят интерполяцию, $DSH_REPO там не развернётся. Поэтому
