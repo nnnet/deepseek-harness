@@ -1,0 +1,19 @@
+host-local/README.md
+  s_12b89074a2af1a::t_6d358c07d4ec6a 111-132
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "1f35ebcb23be4d29d73d124e509dc781153d43c8",
+  "prompts": {},
+  "sessions": {
+    "s_12b89074a2af1a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c7a21356-412f-4367-98bf-59f333dbc7b4",
+        "model": "claude-opus-5"
+      },
+      "human_author": "nnnet <21066097+nnnet@users.noreply.github.com>"
+    }
+  }
+}
