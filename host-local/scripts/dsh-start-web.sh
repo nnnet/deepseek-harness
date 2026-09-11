@@ -46,6 +46,9 @@ RELEASE_LOG="$HOST_DIR/docs/release-log.md"
 
 cd "$REPO_ROOT"
 
+GIT_EXCLUDE_SRC="$HOST_DIR/git-exclude"
+GIT_EXCLUDE_MARK="# >>> host-local git-exclude"
+
 log()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m/!\\\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[1;31mxxx\033[0m %s\n' "$*" >&2; exit 1; }
@@ -74,6 +77,33 @@ assert_host_branch() {
 # трудно выбраться. Для start это предупреждение, для upgrade — стоп.
 worktree_is_dirty() {
   [ -n "$(git status --porcelain --untracked-files=no)" ]
+}
+
+# ── локальные ignore-правила ──────────────────────────────────────────
+
+# Ставим правила в .git/info/exclude, а НЕ в корневой .gitignore: тот
+# принадлежит апстриму, и наша строка в нём однажды даст конфликт слияния.
+# Обратная сторона — .git/info/exclude не версионируется и не переживает
+# clone, поэтому источник правды лежит в ветке (host-local/git-exclude), а
+# сюда он копируется при каждом запуске.
+sync_git_exclude() {
+  [ -f "$GIT_EXCLUDE_SRC" ] || return 0
+  local dst="$REPO_ROOT/.git/info/exclude"
+  mkdir -p "$(dirname "$dst")"
+  touch "$dst"
+
+  # Свой блок узнаём по маркеру и переписываем целиком — так правка
+  # host-local/git-exclude доезжает, а чужие строки не трогаются.
+  local tmp
+  tmp="$(mktemp)"
+  sed "/^${GIT_EXCLUDE_MARK}$/,/^# <<< host-local git-exclude$/d" "$dst" > "$tmp"
+  {
+    echo "$GIT_EXCLUDE_MARK"
+    echo "# Генерируется из host-local/git-exclude. Правь ТАМ, не здесь."
+    cat "$GIT_EXCLUDE_SRC"
+    echo "# <<< host-local git-exclude"
+  } >> "$tmp"
+  mv "$tmp" "$dst"
 }
 
 # ── релизы ────────────────────────────────────────────────────────────
@@ -250,6 +280,10 @@ cmd_start() {
   log "dsh --profile $PROFILE --port $WEB_PORT"
   exec pnpm exec tsx apps/cli/src/bin.ts --profile "$PROFILE" --port "$WEB_PORT"
 }
+
+# Раньше всего остального: без актуального exclude «грязное дерево» может
+# оказаться ложным, и upgrade откажется работать на ровном месте.
+sync_git_exclude
 
 case "${1:-start}" in
   start)   cmd_start ;;
