@@ -1,0 +1,21 @@
+host-local/scripts/dsh-start-web.sh
+  s_12b89074a2af1a::t_7afe51b92f5de1 441-442
+  s_12b89074a2af1a::t_53dcf641ef0d68 392,396-440
+  s_12b89074a2af1a::t_9cf02c4f18a7cb 443
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "2b329c3bb3baf01d295e753f5b12cc885a1f5686",
+  "prompts": {},
+  "sessions": {
+    "s_12b89074a2af1a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c7a21356-412f-4367-98bf-59f333dbc7b4",
+        "model": "claude-opus-5"
+      },
+      "human_author": "nnnet <21066097+nnnet@users.noreply.github.com>"
+    }
+  }
+}
