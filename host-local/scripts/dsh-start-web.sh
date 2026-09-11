@@ -106,6 +106,37 @@ sync_git_exclude() {
   mv "$tmp" "$dst"
 }
 
+# ── установка зависимостей ────────────────────────────────────────────
+
+# Релиз тянет сотни мегабайт (@openai/codex — 129 МБ, claude-agent-sdk — 97
+# МБ), и одиночный `pnpm install` на нестабильной сети падает почти всегда:
+# видно шторм ETIMEDOUT к registry.npmjs.org, затем «TypeError: fetch
+# failed». Поэтому установка — цикл, а не одна команда.
+#
+# network-concurrency понижена намеренно: 16 параллельных соединений по
+# умолчанию как раз и создают таймауты, при 4 закачка идёт медленнее, но
+# доходит. Ретраи дешёвые — pnpm переиспользует уже скачанное из store,
+# каждая следующая попытка начинается почти с того места, где встала.
+install_deps() {
+  local attempts="${DSH_INSTALL_ATTEMPTS:-5}" i delay
+  for ((i = 1; i <= attempts; i++)); do
+    log "установка зависимостей (попытка $i из $attempts)"
+    if pnpm install \
+         --network-concurrency "${DSH_NETWORK_CONCURRENCY:-4}" \
+         --fetch-retries 5 \
+         --fetch-retry-mintimeout 20000 \
+         --fetch-retry-maxtimeout 120000 \
+         --fetch-timeout 300000; then
+      return 0
+    fi
+    [ "$i" -lt "$attempts" ] || break
+    delay=$((i * 20))
+    warn "установка сорвалась; повтор через ${delay}с (скачанное сохранено)"
+    sleep "$delay"
+  done
+  return 1
+}
+
 # ── релизы ────────────────────────────────────────────────────────────
 
 current_release() {
@@ -250,10 +281,10 @@ cmd_upgrade() {
   # Установка и сборка — не транзакция: сеть отваливается на середине
   # стомегабайтной закачки. Падение здесь не откатывает мердж, а просит
   # повторить ту же команду.
-  log "ставлю зависимости"
-  if ! pnpm install; then
-    warn "установка не прошла (часто — сетевой сбой на большой закачке)."
+  if ! install_deps; then
+    warn "установка не прошла даже с ретраями — похоже, сеть недоступна."
     printf '      повтори ту же команду: %s upgrade %s\n' "${0##*/}" "$tag"
+    printf '      или помедленнее:      DSH_NETWORK_CONCURRENCY=2 %s upgrade %s\n' "${0##*/}" "$tag"
     exit 1
   fi
 
