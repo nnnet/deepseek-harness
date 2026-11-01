@@ -1,0 +1,107 @@
+name: dsh-local
+
+services:
+  bsk:
+    image: dsh-local:0.2.1-rc.5
+    container_name: bsk-daemon
+    init: false
+    network_mode: host
+    restart: unless-stopped
+    user: "${DSH_UID:-1000}:${DSH_GID:-1000}"
+    working_dir: /mnt/82A23910A2390A65/Trade/EducationAndHack/LLM/Proxy/BrowserRunner
+    environment:
+      HOME: /home/uadmin
+      PATH: /mnt/82A23910A2390A65/Trade/EducationAndHack/LLM/Proxy/BrowserRunner/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      BSK_AUTO_UPDATE: "off"
+    volumes:
+      - type: bind
+        source: "${DSH_MOUNT_ROOT:-/mnt/82A23910A2390A65}"
+        target: "${DSH_MOUNT_ROOT:-/mnt/82A23910A2390A65}"
+      - type: bind
+        source: /home/uadmin/.bsk
+        target: /home/uadmin/.bsk
+    command:
+      - bash
+      - /mnt/82A23910A2390A65/Trade/EducationAndHack/LLM/Platforms/deepseek-harness/dsh/host-local/docker/run-bsk.sh
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          bsk status --json |
+          jq -e '(.browsers | length) > 0 and .browsers[0].unresponsive == false'
+          >/dev/null
+      interval: 5s
+      timeout: 3s
+      retries: 24
+      start_period: 5s
+
+  dsh:
+    image: dsh-local:0.2.1-rc.5
+    build:
+      context: .
+      dockerfile: host-local/docker/Dockerfile
+    container_name: dsh-web
+    depends_on:
+      bsk:
+        condition: service_healthy
+    network_mode: host
+    restart: unless-stopped
+    user: "${DSH_UID:-1000}:${DSH_GID:-1000}"
+    working_dir: "${DSH_REPO_PATH:-/mnt/82A23910A2390A65/Trade/EducationAndHack/LLM/Platforms/deepseek-harness/dsh}"
+    environment:
+      HOME: /home/uadmin
+      DSH_HOME: /home/uadmin/.dsh
+      DSH_PROFILE_PATH: /home/uadmin/.dsh/profiles/web
+      DSH_REPO_PATH: "${DSH_REPO_PATH:-/mnt/82A23910A2390A65/Trade/EducationAndHack/LLM/Platforms/deepseek-harness/dsh}"
+      DSH_PORT: "${DSH_PORT:-3080}"
+      PNPM_CONFIG_STORE_DIR: /home/uadmin/.dsh/.pnpm-store
+      BROWSER: /bin/false
+      PATH: /mnt/82A23910A2390A65/Trade/EducationAndHack/LLM/Proxy/BrowserRunner/.venv/bin:/home/uadmin/.local/bin:/home/uadmin/.bun/bin:/opt/dsh-bdd/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    volumes:
+      - type: bind
+        source: "${DSH_MOUNT_ROOT:-/mnt/82A23910A2390A65}"
+        target: "${DSH_MOUNT_ROOT:-/mnt/82A23910A2390A65}"
+      - type: bind
+        source: /home/uadmin/.dsh
+        target: /home/uadmin/.dsh
+      - type: bind
+        source: /home/uadmin/.bsk
+        target: /home/uadmin/.bsk
+      - type: bind
+        source: /home/uadmin/.codex
+        target: /home/uadmin/.codex
+      - type: bind
+        source: /home/uadmin/.claude
+        target: /home/uadmin/.claude
+      - type: bind
+        source: /home/uadmin/.local
+        target: /home/uadmin/.local
+        read_only: true
+      - type: bind
+        source: /home/uadmin/.bun
+        target: /home/uadmin/.bun
+        read_only: true
+      - type: bind
+        source: /home/uadmin/.ssh
+        target: /home/uadmin/.ssh
+        read_only: true
+      - type: bind
+        source: /home/uadmin/.gitconfig
+        target: /home/uadmin/.gitconfig
+        read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    stop_grace_period: 30s
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          code=$$(curl --silent --output /dev/null --write-out '%{http_code}'
+          "http://127.0.0.1:$${DSH_PORT}/");
+          test "$$code" = 200 -o "$$code" = 401
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s

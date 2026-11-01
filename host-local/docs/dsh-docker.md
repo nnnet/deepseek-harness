@@ -4,9 +4,95 @@
 микро-ВМ с пробросом рабочих каталогов наружу, и по переносу накопленного
 состояния между хостами.
 
-Разделы 1–8 — Docker. Разделы 9–11 — перенос состояния и Firecracker.
+## 0. Рабочая конфигурация этого хоста
 
-Проверено против checkout'а `dsh` 0.1.2-rc.1 в этом репозитории.
+С ноября 2026 года рабочий DSH этого checkout запускается только в Docker.
+Реализация лежит в `host-local/docker/`, а единая точка входа —
+`host-local/Makefile`. Она проверена на релизе `dsh-v0.2.1-rc.5`.
+
+Полное развёртывание:
+
+```bash
+make -f host-local/Makefile docker-deploy
+```
+
+Цель последовательно и fail-fast выполняет:
+
+1. проверку Compose-конфигурации;
+2. сборку локального образа;
+3. установку зависимостей и сборку DSH внутри контейнера;
+4. BDD, OpenSpec coverage/validation и gate избыточности;
+5. запуск `dsh-web` и реальную smoke-проверку.
+
+Каждая стадия пишет лог и JSON receipt с длительностью и exit code в
+`host-local/state/docker/`. Этот каталог является машинным состоянием и не
+коммитится.
+
+Операционные команды:
+
+```bash
+make -f host-local/Makefile docker-status
+make -f host-local/Makefile docker-logs
+make -f host-local/Makefile docker-smoke
+make -f host-local/Makefile docker-down
+```
+
+Сервис доступен только на `http://127.0.0.1:3080`. Команда контейнера всегда
+передаёт `--no-open`, поэтому DSH не создаёт окно или вкладку браузера.
+
+### Обновление DSH
+
+Апстрим публикует релизы тегами. `master` может уже содержать следующий alpha,
+поэтому рабочая ветка обновляется на явно выбранный RC/стабильный тег:
+
+```bash
+git fetch --tags --prune origin
+git branch backup/uadmin-raider18-before-<version>
+git merge --no-edit dsh-v<version>
+make -f host-local/Makefile docker-deploy
+```
+
+Не делай `reset` на `origin/master`: в `host/uadmin-raider18` находятся
+локальные host-specific изменения. Перед подготовкой контейнер сохраняет
+манифесты профиля в `~/.dsh/_archive/docker-preflight-<date>/`.
+
+### Что монтируется
+
+- `~/.dsh` — read/write, чтобы сохранить профиль, credentials и сессии;
+- `~/.bsk` — read/write для общего IPC с единственным host daemon BrowserSkill;
+- диск `/mnt/82A23910A2390A65` — в тот же абсолютный путь для `link:`
+  зависимостей и workspace;
+- `~/.codex` и `~/.claude` — read/write для сессий CLI;
+- `~/.local`, `~/.bun`, `~/.ssh` и `~/.gitconfig` — read-only.
+
+Контейнер использует host network. Это одновременно оставляет порт 3080 на
+loopback и даёт доступ к уже подключённому BrowserSkill на
+`127.0.0.1:52800`. BrowserSkill CLI берётся из `.venv` BrowserRunner; новые
+Chrome-процессы контейнер не запускает.
+
+Daemon BrowserSkill работает отдельным Compose-сервисом `bsk-daemon` с
+`restart: unless-stopped`. При первом переходе `run-bsk.sh` останавливает
+старый ручной daemon через штатный `bsk daemon stop`, ждёт освобождения 52800
+и запускает ровно один foreground daemon под supervision Docker.
+
+Chrome сохраняет прошлые service-worker errors даже после восстановления
+WebSocket. Красная кнопка `Errors` сама по себе не означает текущий отказ.
+Проверка истины — `bsk status --json`: браузер должен присутствовать в
+`browsers`, а `unresponsive` и `version_skew` должны быть `false`. После этого
+историческую запись можно удалить через `Errors` → `Clear all` или кнопкой
+reload на карточке расширения; новый Chrome-профиль для этого не нужен.
+
+### Несовместимые плагины после большого обновления
+
+DSH 0.2.x проверяет declared compatibility сторонних плагинов и безопасно
+пропускает плагины, которые объявлены только для 0.1.x. Не выдавай им
+`allow-version` автоматически: это явное принятие риска crash/data loss.
+Сначала обнови конкретный плагин до версии с поддержкой 0.2.x или протестируй
+его отдельно, и только затем решай вопрос с точечным exemption.
+
+Разделы 1–8 — Docker. Разделы 9–11 — перенос состояния и Firecracker.
+Они сохраняют подробное исследование, первоначально выполненное на
+`dsh` 0.1.2-rc.1; актуальная исполняемая конфигурация описана в разделе 0.
 **Upstream не содержит Dockerfile, compose или k8s-манифестов** — всё ниже
 собирается самостоятельно.
 

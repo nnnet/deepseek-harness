@@ -45,5 +45,8 @@ apps/web/dist/
 .worktrees/
 worktrees/
 .agents/worktrees/
+.browser-runner/
+bdd/__pycache__/
+bdd/.pytest_cache/
 .typert-*/
 native/system/test/bin/

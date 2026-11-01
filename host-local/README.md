@@ -104,6 +104,7 @@ host-local/scripts/dsh-start-web.sh upgrade dsh-v0.1.5-rc.2
 | `DSH_NO_ARCH_PIN` | — | не трогать `supportedArchitectures` в профиле |
 | `DSH_NETWORK_CONCURRENCY` | `4` | параллельность закачек pnpm; 16 по умолчанию даёт ETIMEDOUT |
 | `DSH_INSTALL_ATTEMPTS` | `5` | попыток установки при сетевых сбоях |
+| `PNPM_CONFIG_STORE_DIR` | `~/.dsh/.pnpm-store` | единый записываемый store для установки и удаления плагинов в Docker |
 | `DSH_REFRESH_FREE_MODELS` | `always` | список `:free` моделей OpenRouter |
 | `DSH_UPSTREAM_REMOTE` | `origin` | откуда теги релизов |
 | `DSH_FORK_REMOTE` | `fork` | личный форк |
