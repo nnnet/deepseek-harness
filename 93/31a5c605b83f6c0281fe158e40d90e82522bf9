@@ -1,0 +1,48 @@
+.gitignore
+  h_e36c3d654edcfe 48-50
+bdd/features/dsh-docker-runtime.feature
+  h_e36c3d654edcfe 1-25
+bdd/pytest.ini
+  h_e36c3d654edcfe 1-7
+bdd/test_features.py
+  h_e36c3d654edcfe 1-109
+host-local/Makefile
+  h_e36c3d654edcfe 1-51
+host-local/README.md
+  h_e36c3d654edcfe 107
+host-local/docker/Dockerfile
+  h_e36c3d654edcfe 1-37
+host-local/docker/compose.yaml
+  h_e36c3d654edcfe 1-107
+host-local/docker/prepare.sh
+  h_e36c3d654edcfe 1-40
+host-local/docker/redundancy-gate.sh
+  h_e36c3d654edcfe 1-15
+host-local/docker/run-bsk.sh
+  h_e36c3d654edcfe 1-20
+host-local/docker/run-dsh.sh
+  h_e36c3d654edcfe 1-26
+host-local/docker/run-task.sh
+  h_e36c3d654edcfe 1-43
+host-local/docker/smoke.sh
+  h_e36c3d654edcfe 1-38
+host-local/docs/dsh-docker.md
+  h_e36c3d654edcfe 7-43,45-95
+host-local/state/.gitignore
+  h_e36c3d654edcfe 3
+openspec/config.yaml
+  h_e36c3d654edcfe 1-6
+openspec/specs/dsh-docker-runtime/spec.md
+  h_e36c3d654edcfe 1-41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9331a5c605b83f6c0281fe158e40d90e82522bf9",
+  "prompts": {},
+  "humans": {
+    "h_e36c3d654edcfe": {
+      "author": "nnnet <21066097+nnnet@users.noreply.github.com>"
+    }
+  }
+}
